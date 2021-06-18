@@ -106,6 +106,14 @@ Average time taken: {{ .Average }}
 			if err != nil {
 				panic(err)
 			}
+
+			deletePreviousInstallation()
+		})
+
+	commando.
+		Register("up").
+		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
+			update()
 		})
 
 	commando.Parse(nil)
