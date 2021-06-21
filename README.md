@@ -1,5 +1,8 @@
 # bench
-*bench* is a command line utility for making benchmarking easy.
+
+![bench_demo](assets/demo.png)
+
+*bench* is a simple CLI tool for making benchmarking easy.
 
 <br>
 
