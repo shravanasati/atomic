@@ -14,7 +14,7 @@ import (
 
 const (
 	NAME    = "bench"
-	VERSION = "0.1.0"
+	VERSION = "0.1.1"
 )
 
 // Result struct which is shown at the end as benchmarking summary and is written to a file.
@@ -26,14 +26,17 @@ type Result struct {
 	Average    time.Duration
 }
 
+
 func main() {
 	fmt.Println(NAME, VERSION)
+	deletePreviousInstallation()
 
 	// * basic configuration
 	commando.
 		SetExecutableName(NAME).
 		SetVersion(VERSION).
-		SetDescription("bench is a simple CLI tool to make benchmarking easy.")
+		SetDescription("bench is a simple CLI tool to make benchmarking easy. \nFor more info visit https://github.com/Shravan-1908/bench.")
+
 
 	// * root command
 	commando.
@@ -50,8 +53,10 @@ func main() {
 				return
 			}
 			var sum time.Duration
-
 			started := time.Now().Format("02-01-2006 15:04:05")
+
+
+			// * looping for given iterations
 			for i := 1; i <= x; i++ {
 				fmt.Printf("***********\nRunning iteration %v\n***********\n", i)
 				cmd := exec.Command(command[0], command[1:]...)
@@ -62,6 +67,7 @@ func main() {
 
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
+
 				init := time.Now()
 				if e := cmd.Start(); e != nil {
 					fmt.Println("The command couldnt be started!")
@@ -106,10 +112,10 @@ Average time taken: {{ .Average }}
 			if err != nil {
 				panic(err)
 			}
-
-			deletePreviousInstallation()
 		})
 
+
+	// * the update command
 	commando.
 		Register("up").
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
