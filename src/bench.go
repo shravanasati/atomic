@@ -59,11 +59,15 @@ func main() {
 		Register(nil).
 		AddArgument("command", "The command to run for benchmarking.", "").
 		AddArgument("iterations", "The number of iterations.", "10").
+		AddFlag("export", "Export the benchmarking summary in a json, csv, or text format.", commando.String, "").
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 			// * initialising some variables
 			executable := args["command"].Value
 			command := strings.Fields(executable)
 			x, e := strconv.Atoi(args["iterations"].Value)
+
+			
+
 			if e != nil {
 				fmt.Println(RED + "Invalid input for iterations value." + RESET)
 				return
@@ -129,6 +133,36 @@ ${yellow}Average time taken: ${green}{{ .Average }} ${reset}
 			if err != nil {
 				panic(err)
 			}
+
+			// * getting export values
+			exportFormat, ierr := flags["export"].GetString()
+			if ierr != nil {
+				fmt.Println(RED + "Invalid export format." + RESET)
+			}
+
+			// * exporting the results
+			if exportFormat == "json" {
+				// TODO the Average field in json is getting written absurdly big
+				jsonText, e := jsonify(&result)
+				if e != nil {
+					fmt.Println(RED + "Failed to export the results to json." + RESET)
+					return
+				}
+				writeToFile(string(jsonText), "bench-summary.json")
+			
+			} else if exportFormat == "csv" {
+				// TODO write to csv
+			
+			} else if exportFormat == "text" {
+				// TODO the text is written with the color codes, which is not desirable
+				f, err := os.Create("bench-summary.txt")
+				if err != nil {
+					fmt.Println(RED + "Unable to write to a file." + RESET)
+				}
+				if er := tmpl.Execute(f, result); er != nil {
+					fmt.Println(RED + "Failed to export the results to text." + RESET)
+				}
+			} // TODO write as a markdown table
 		})
 
 	// * the update command
