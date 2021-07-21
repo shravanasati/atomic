@@ -21,6 +21,7 @@ func execute(base string, command ...string) error {
 	return nil
 }
 
+// updates bench.
 func update() {
 	fmt.Println("Updating bench...")
 
