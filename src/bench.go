@@ -34,7 +34,7 @@ type Result struct {
 	Ended      string
 	Command    string
 	Iterations int
-	Average    time.Duration
+	Average    string
 }
 
 // formats the text in a javascript like syntax.
@@ -46,7 +46,7 @@ func format(text string, params map[string]string) string {
 }
 
 func main() {
-	fmt.Println(CYAN + NAME, VERSION + RESET)
+	fmt.Println(CYAN+NAME, VERSION+RESET)
 	deletePreviousInstallation()
 
 	// * basic configuration
@@ -67,8 +67,6 @@ func main() {
 			command := strings.Fields(executable)
 			x, e := strconv.Atoi(args["iterations"].Value)
 
-			
-
 			if e != nil {
 				fmt.Println(RED + "Invalid input for iterations value." + RESET)
 				return
@@ -78,7 +76,7 @@ func main() {
 
 			// * looping for given iterations
 			for i := 1; i <= x; i++ {
-				fmt.Printf(PURPLE + "***********\nRunning iteration %v\n***********\n" + RESET, i)
+				fmt.Printf(PURPLE+"***********\nRunning iteration %v\n***********\n"+RESET, i)
 				cmd := exec.Command(command[0], command[1:]...)
 				_, e := cmd.StdoutPipe()
 				if e != nil {
@@ -122,7 +120,7 @@ ${yellow}Average time taken: ${green}{{ .Average }} ${reset}
 				Ended:      ended,
 				Command:    executable,
 				Iterations: x,
-				Average:    sum / time.Duration(x),
+				Average:    (sum / time.Duration(x)).String(),
 			}
 
 			// * parsing the template
@@ -143,27 +141,22 @@ ${yellow}Average time taken: ${green}{{ .Average }} ${reset}
 
 			// * exporting the results
 			if exportFormat == "json" {
-				// TODO the Average field in json is getting written absurdly big
 				jsonText, e := jsonify(&result)
 				if e != nil {
 					fmt.Println(RED + "Failed to export the results to json." + RESET)
 					return
 				}
 				writeToFile(string(jsonText), "bench-summary.json")
-			
+
 			} else if exportFormat == "csv" {
 				// TODO write to csv
-			
+
 			} else if exportFormat == "text" {
-				// TODO the text is written with the color codes, which is not desirable
-				f, err := os.Create("bench-summary.txt")
-				if err != nil {
-					fmt.Println(RED + "Unable to write to a file." + RESET)
-				}
-				if er := tmpl.Execute(f, result); er != nil {
-					fmt.Println(RED + "Failed to export the results to text." + RESET)
-				}
-			} // TODO write as a markdown table
+				textify(&result)
+
+			} else if exportFormat == "markdown" {
+				markdownify(&result)
+			}
 		})
 
 	// * the update command
