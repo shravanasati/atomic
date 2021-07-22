@@ -9,6 +9,7 @@
 ## ✨ Features
 
 - Benchmarks programs easily with just one command, no extra code needed
+- Export the results in markdown, json and text formats
 - Universal support, you can benchmark any shell command 
 - Choose the number of iterations to perform
 - Detailed benchmark summary at the end
@@ -81,6 +82,14 @@ Example:
 bench "node speedtest.js" 20
 ```
 
+You can export the benchmark summary in three different formats - markdown, text and json.
+
+To export the results, use the `--export` flag. A file named `bench-summary.format` will be created.
+
+Example:
+```
+bench "node speedtest.js" 20 --export json
+```
 
 ### up
 

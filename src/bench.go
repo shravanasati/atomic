@@ -60,7 +60,7 @@ func main() {
 		Register(nil).
 		AddArgument("command", "The command to run for benchmarking.", "").
 		AddArgument("iterations", "The number of iterations.", "10").
-		AddFlag("export", "Export the benchmarking summary in a json, csv, or text format.", commando.String, "").
+		AddFlag("export", "Export the benchmarking summary in a json, csv, or text format.", commando.String, "none").
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 			// * initialising some variables
 			executable := args["command"].Value
