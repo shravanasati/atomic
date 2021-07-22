@@ -24,6 +24,7 @@ const (
 	YELLOW = "\033[33m"
 	BLUE   = "\033[34m"
 	PURPLE = "\033[35m"
+	CYAN   = "\033[36m"
 	RESET  = "\033[0m"
 )
 
@@ -45,7 +46,7 @@ func format(text string, params map[string]string) string {
 }
 
 func main() {
-	fmt.Println(NAME, VERSION)
+	fmt.Println(CYAN + NAME, VERSION + RESET)
 	deletePreviousInstallation()
 
 	// * basic configuration

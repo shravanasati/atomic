@@ -23,9 +23,9 @@ func execute(base string, command ...string) error {
 
 // updates bench.
 func update() {
-	fmt.Println("Updating bench...")
+	fmt.Println(YELLOW + "Updating bench..." + RESET)
 
-	fmt.Println("Downloading the bench executable...")
+	fmt.Println(YELLOW + "Downloading the bench executable..." + RESET)
 	// * determining the os-specific url
 	url := ""
 	switch runtime.GOOS {
@@ -44,7 +44,7 @@ func update() {
 	res, err := http.Get(url)
 	
 	if err != nil {
-		fmt.Println("Error: Unable to download the executable. Check your internet connection.")
+		fmt.Println(RED + "Error: Unable to download the executable. Check your internet connection." + RESET)
 		fmt.Println(err)
 		return
 	}
@@ -54,7 +54,7 @@ func update() {
 	// * determining the executable path
 	downloadPath, e := os.UserHomeDir()
 	if e != nil {
-		fmt.Println("Error: Unable to retrieve bench path.")
+		fmt.Println(RED + "Error: Unable to retrieve bench path." + RESET)
 		fmt.Println(e)
 		return
 	}
@@ -65,7 +65,7 @@ func update() {
 
 	exe, er := os.Create(downloadPath)
 	if er != nil {
-		fmt.Println("Error: Unable to access file permissions.")
+		fmt.Println(RED +"Error: Unable to access file permissions." + RESET)
 		fmt.Println(er)
 		return
 	}
@@ -74,7 +74,7 @@ func update() {
 	// * writing the recieved content to the bench executable
 	_, errr := io.Copy(exe, res.Body)
 	if errr != nil {
-		fmt.Println("Error: Unable to write the executable.")
+		fmt.Println(RED + "Error: Unable to write the executable." + RESET)
 		fmt.Println(errr)
 		return
 	}
@@ -84,7 +84,7 @@ func update() {
 		execute("chmod", "u+x", downloadPath)
 	}
 
-	fmt.Println("Update completed!")
+	fmt.Println(GREEN + "Update completed!")
 }
 
 func deletePreviousInstallation() {
