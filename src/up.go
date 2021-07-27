@@ -1,14 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
-	"os/exec"
 )
 
 // execute executes a command in the shell.
@@ -23,9 +22,9 @@ func execute(base string, command ...string) error {
 
 // updates bench.
 func update() {
-	fmt.Println(YELLOW + "Updating bench..." + RESET)
+	log("yellow", "Updating bench...")
+	log("yellow", "Downloading the bench executable...")
 
-	fmt.Println(YELLOW + "Downloading the bench executable..." + RESET)
 	// * determining the os-specific url
 	url := ""
 	switch runtime.GOOS {
@@ -36,16 +35,16 @@ func update() {
 	case "darwin":
 		url = "https://github.com/Shravan-1908/bench/releases/latest/download/bench-darwin-amd64"
 	default:
-		fmt.Println("Your OS isnt supported by bench.")
+		log("red", "Your OS isnt supported by bench.")
 		return
 	}
 
 	// * sending a request
 	res, err := http.Get(url)
-	
+
 	if err != nil {
-		fmt.Println(RED + "Error: Unable to download the executable. Check your internet connection." + RESET)
-		fmt.Println(err)
+		log("red", "Error: Unable to download the executable. Check your internet connection.")
+		log("white", err.Error())
 		return
 	}
 
@@ -54,19 +53,21 @@ func update() {
 	// * determining the executable path
 	downloadPath, e := os.UserHomeDir()
 	if e != nil {
-		fmt.Println(RED + "Error: Unable to retrieve bench path." + RESET)
-		fmt.Println(e)
+		log("red", "Error: Unable to determine bench's location.")
+		log("white", e.Error())
 		return
 	}
 	downloadPath += "/.bench/bench"
-	if runtime.GOOS == "windows" {downloadPath += ".exe"}
+	if runtime.GOOS == "windows" {
+		downloadPath += ".exe"
+	}
 
-	os.Rename(downloadPath, downloadPath + "-old")
+	os.Rename(downloadPath, downloadPath+"-old")
 
 	exe, er := os.Create(downloadPath)
 	if er != nil {
-		fmt.Println(RED +"Error: Unable to access file permissions." + RESET)
-		fmt.Println(er)
+		log("red", "Error: Unable to access file permissions.")
+		log("white", er.Error())
 		return
 	}
 	defer exe.Close()
@@ -74,22 +75,22 @@ func update() {
 	// * writing the recieved content to the bench executable
 	_, errr := io.Copy(exe, res.Body)
 	if errr != nil {
-		fmt.Println(RED + "Error: Unable to write the executable." + RESET)
-		fmt.Println(errr)
+		log("red", "Error: Unable to write the executable.")
+		log("white", errr.Error())
 		return
 	}
 
-	// * performing an additional `chmod` utility for linux and mac 
+	// * performing an additional `chmod` utility for linux and mac
 	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
 		execute("chmod", "u+x", downloadPath)
 	}
 
-	fmt.Println(GREEN + "Update completed!")
+	log("green", "Bench was updated successfully.")
 }
 
+// deletes previous installation if it exists.
 func deletePreviousInstallation() {
 	benchDir, _ := os.UserHomeDir()
-	
 	benchDir += "/.bench"
 
 	files, _ := ioutil.ReadDir(benchDir)
