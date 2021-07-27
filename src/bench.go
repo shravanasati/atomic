@@ -41,8 +41,8 @@ func main() {
 		Register(nil).
 		AddArgument("command", "The command to run for benchmarking.", "").
 		AddArgument("iterations", "The number of iterations.", "10").
-		AddFlag("export", "Export the benchmarking summary in a json, csv, or text format.", commando.String, "none").
-		AddFlag("verbose", "Enable verbose output.", commando.Bool, false).
+		AddFlag("export,e", "Export the benchmarking summary in a json, csv, or text format.", commando.String, "none").
+		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 
 			// * initialising some variables
