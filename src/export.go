@@ -6,10 +6,18 @@ import (
 	"text/template"
 )
 
-// consolify prints the benchmark summary of the Result struct to the console, with color codes.
-func consolify(result *Result) {
-	// * result text
-	text := format(`
+var summaryNoColor = `
+Benchmarking Summary
+--------------------
+
+Started: {{ .Started }} 
+Ended: {{ .Ended }} 
+Executed Command: {{ .Command }} 
+Total iterations: {{ .Iterations }} 
+Average time taken: {{ .Average }} 
+`
+
+var summaryColor = `
 ${blue}Benchmarking Summary ${reset}
 ${blue}-------------------- ${reset}
 
@@ -18,8 +26,17 @@ ${yellow}Ended: ${green}{{ .Ended }} ${reset}
 ${yellow}Executed Command: ${green}{{ .Command }} ${reset}
 ${yellow}Total iterations: ${green}{{ .Iterations }} ${reset}
 ${yellow}Average time taken: ${green}{{ .Average }} ${reset}
-`,
-		map[string]string{"blue": BLUE, "yellow": YELLOW, "green": GREEN, "reset": RESET})
+`
+
+// consolify prints the benchmark summary of the Result struct to the console, with color codes.
+func consolify(result *Result) {
+	// * result text
+	text := format(summaryColor,
+			map[string]string{"blue": CYAN, "yellow": YELLOW, "green": GREEN, "reset": RESET})
+
+	if NO_COLOR {
+		text = summaryNoColor
+	}
 
 	// * parsing the template
 	tmpl, err := template.New("result").Parse(text)
@@ -34,16 +51,8 @@ ${yellow}Average time taken: ${green}{{ .Average }} ${reset}
 
 // textify writes the benchmark summary of the Result struct to a text file.
 func textify(r *Result) {
-	text := `
-Benchmarking Summary
---------------------
+	text := summaryNoColor
 
-Started: {{ .Started }} 
-Ended: {{ .Ended }} 
-Executed Command: {{ .Command }} 
-Total iterations: {{ .Iterations }} 
-Average time taken: {{ .Average }} 
-`
 	tmpl, err := template.New("summary").Parse(text)
 	if err != nil {
 		panic(err)

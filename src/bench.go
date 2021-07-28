@@ -16,6 +16,8 @@ const (
 	VERSION = "0.3.0"
 )
 
+var NO_COLOR bool = false
+
 // Result struct which is shown at the end as benchmarking summary and is written to a file.
 type Result struct {
 	Started    string
@@ -26,7 +28,7 @@ type Result struct {
 }
 
 func main() {
-	log("cyan", fmt.Sprintf("%v %v\n", NAME, VERSION))
+	log("white", fmt.Sprintf("%v %v\n", NAME, VERSION))
 
 	go deletePreviousInstallation()
 
@@ -43,6 +45,7 @@ func main() {
 		AddArgument("iterations", "The number of iterations.", "10").
 		AddFlag("export,e", "Export the benchmarking summary in a json, csv, or text format.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
+		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 
 			// * initialising some variables
@@ -52,6 +55,11 @@ func main() {
 			if e != nil {
 				log("red", "Application error: cannot parse flag values.")
 			}
+			NO_COLOR, e = (flags["color"].GetBool())
+			if e != nil {
+				log("red", "Application error: cannot parse flag values.")
+			}
+			NO_COLOR = !NO_COLOR
 
 			x, e := strconv.Atoi(args["iterations"].Value)
 			if e != nil {
@@ -116,7 +124,13 @@ func main() {
 	// * the update command
 	commando.
 		Register("up").
+		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
+			_no_color, e := flags["no-color"].GetBool()
+			if e != nil {
+				log("red", "Application error: cannot parse flag values.")
+			}
+			NO_COLOR = _no_color
 			update()
 		})
 
