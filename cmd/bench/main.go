@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thatisuday/commando"
 	"github.com/Shravan-1908/bench/internal"
+	"github.com/thatisuday/commando"
 )
 
 const (
@@ -18,8 +18,6 @@ const (
 )
 
 var NO_COLOR bool = false
-
-
 
 func run(command []string, verbose bool) (time.Duration, error) {
 	cmd := exec.Command(command[0], command[1:]...)
@@ -96,11 +94,11 @@ func main() {
 			// * looping for given iterations
 			for i := 1; i <= x; i++ {
 				internal.Log("purple", fmt.Sprintf("***********\nRunning iteration %d\n***********", i))
+
 				dur, e := run(command, verbose)
 				if e != nil {
 					return
 				}
-
 				sum += dur
 			}
 
@@ -115,14 +113,14 @@ func main() {
 				Average:    (sum / time.Duration(x)).String(),
 			}
 
-			internal.Consolify(&result)
+			result.Consolify()
 
 			// * getting export values
 			exportFormat, ierr := flags["export"].GetString()
 			if ierr != nil {
 				internal.Log("red", "Invalid export format.")
 			}
-			internal.Export(exportFormat, &result)
+			result.Export(exportFormat)
 
 		})
 

@@ -29,10 +29,10 @@ ${yellow}Average time taken: ${green}{{ .Average }} ${reset}
 `
 
 // Consolify prints the benchmark summary of the Result struct to the console, with color codes.
-func Consolify(result *Result) {
+func (result *Result) Consolify() {
 	// * result text
 	text := format(summaryColor,
-			map[string]string{"blue": CYAN, "yellow": YELLOW, "green": GREEN, "reset": RESET})
+		map[string]string{"blue": CYAN, "yellow": YELLOW, "green": GREEN, "reset": RESET})
 
 	if NO_COLOR {
 		text = summaryNoColor
@@ -104,7 +104,7 @@ func jsonify(r *Result) ([]byte, error) {
 // func csvify(r *Result) ([]byte, error) {
 // }
 
-func Export(exportFormat string, result *Result) {
+func (result *Result) Export(exportFormat string) {
 	// * exporting the results
 	if exportFormat == "json" {
 		jsonText, e := jsonify(result)
