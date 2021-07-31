@@ -12,8 +12,10 @@ const (
 	RESET  = "\033[0m"
 )
 
+// NO_COLOR is a global variable that can be set to disable color output.
 var NO_COLOR bool = false
 
+// Log prints the given message in the given color.
 func Log(color, message string) {
 	if NO_COLOR {
 		fmt.Println(message)

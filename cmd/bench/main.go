@@ -13,10 +13,13 @@ import (
 )
 
 const (
+	// NAME is the executable name.
 	NAME    = "bench"
+	// VERSION is the executable version.
 	VERSION = "0.3.0"
 )
 
+// NO_COLOR is a global variable that is used to determine whether or not to enable color output.
 var NO_COLOR bool = false
 
 func run(command []string, verbose bool) (time.Duration, error) {
@@ -129,11 +132,11 @@ func main() {
 		Register("up").
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
-			_no_color, e := flags["no-color"].GetBool()
+			_noColor, e := flags["color"].GetBool()
 			if e != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
 			}
-			NO_COLOR = _no_color
+			internal.NO_COLOR = !_noColor
 			internal.Update()
 		})
 

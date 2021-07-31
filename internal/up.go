@@ -20,7 +20,8 @@ func execute(base string, command ...string) error {
 	return nil
 }
 
-// updates bench.
+// Update updates bench by downloading the latest executable from github, and renaming the
+// old executable to `bench-old` so that it can be deleted by `DeletePreviousInstallation`.
 func Update() {
 	Log("yellow", "Updating bench...")
 	Log("yellow", "Downloading the bench executable...")
@@ -88,7 +89,7 @@ func Update() {
 	Log("green", "Bench was updated successfully.")
 }
 
-// deletes previous installation if it exists.
+// DeletePreviousInstallation deletes previous installation if it exists.
 func DeletePreviousInstallation() {
 	benchDir, _ := os.UserHomeDir()
 	benchDir += "/.bench"

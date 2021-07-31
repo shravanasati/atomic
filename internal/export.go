@@ -104,6 +104,7 @@ func jsonify(r *Result) ([]byte, error) {
 // func csvify(r *Result) ([]byte, error) {
 // }
 
+// Export writes the benchmark summary of the Result struct to a file in the specified format.
 func (result *Result) Export(exportFormat string) {
 	// * exporting the results
 	if exportFormat == "json" {
