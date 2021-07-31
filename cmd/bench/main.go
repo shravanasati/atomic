@@ -72,7 +72,7 @@ func main() {
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 
-			// * initialising some variables
+			// * getting args and flag values
 			executable := args["command"].Value
 			command := strings.Fields(executable)
 			verbose, e := flags["verbose"].GetBool()
@@ -121,7 +121,7 @@ func main() {
 			// * getting export values
 			exportFormat, ierr := flags["export"].GetString()
 			if ierr != nil {
-				internal.Log("red", "Invalid export format.")
+				internal.Log("red", "Application error: cannot parse flag values.")
 			}
 			result.Export(exportFormat)
 

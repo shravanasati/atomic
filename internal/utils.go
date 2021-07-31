@@ -21,6 +21,7 @@ func writeToFile(text, filename string) (err error) {
 		return err
 	}
 	defer f.Close()
+
 	_, err = f.WriteString(text)
 	return err
 }

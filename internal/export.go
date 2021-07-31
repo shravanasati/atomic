@@ -125,6 +125,6 @@ func (result *Result) Export(exportFormat string) {
 		markdownify(result)
 
 	} else if exportFormat != "none" {
-		Log("red", "Invalid export format.")
+		Log("red", "Invalid export format: " + exportFormat + ".")
 	}
 }
