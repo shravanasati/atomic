@@ -1,8 +1,12 @@
 # bench
 
+[![Continuous integration](https://github.com/Shravan-1908/bench/actions/workflows/integrate.yml/badge.svg)](https://github.com/Shravan-1908/bench/actions/workflows/integrate.yml)
+
 ![bench_demo](assets/demo.png)
 
+
 *bench* is a simple CLI tool for making benchmarking easy.
+
 
 <br>
 
