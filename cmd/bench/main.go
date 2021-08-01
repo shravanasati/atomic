@@ -52,7 +52,7 @@ func run(command []string, verbose bool) (time.Duration, error) {
 
 func main() {
 	internal.NO_COLOR = NO_COLOR
-	internal.Log("white", fmt.Sprintf("%v %v\n", NAME, VERSION))
+	internal.Log("white", fmt.Sprintf("%v %v", NAME, VERSION))
 
 	go internal.DeletePreviousInstallation()
 
@@ -65,6 +65,8 @@ func main() {
 	// * root command
 	commando.
 		Register(nil).
+		SetShortDescription("Benchmark a command for given number of iterations.").
+		SetDescription("Benchmark a command for given number of iterations.").
 		AddArgument("command", "The command to run for benchmarking.", "").
 		AddArgument("iterations", "The number of iterations.", "10").
 		AddFlag("export,e", "Export the benchmarking summary in a json, csv, or text format.", commando.String, "none").
@@ -130,6 +132,8 @@ func main() {
 	// * the update command
 	commando.
 		Register("up").
+		SetShortDescription("Update bench.").
+		SetDescription("Update bench to the latest version.").
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 			_noColor, e := flags["color"].GetBool()
