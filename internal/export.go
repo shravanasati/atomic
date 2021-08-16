@@ -10,10 +10,10 @@ var summaryNoColor = `
 Benchmarking Summary
 --------------------
 
-Started: {{ .Started }} 
-Ended: {{ .Ended }} 
-Executed Command: {{ .Command }} 
-Total iterations: {{ .Iterations }} 
+Started:            {{ .Started }} 
+Ended:              {{ .Ended }} 
+Executed Command:   {{ .Command }} 
+Total iterations:   {{ .Iterations }} 
 Average time taken: {{ .Average }} 
 `
 
@@ -21,10 +21,10 @@ var summaryColor = `
 ${blue}Benchmarking Summary ${reset}
 ${blue}-------------------- ${reset}
 
-${yellow}Started: ${green}{{ .Started }} ${reset}
-${yellow}Ended: ${green}{{ .Ended }} ${reset}
-${yellow}Executed Command: ${green}{{ .Command }} ${reset}
-${yellow}Total iterations: ${green}{{ .Iterations }} ${reset}
+${yellow}Started:            ${green}{{ .Started }} ${reset}
+${yellow}Ended:              ${green}{{ .Ended }} ${reset}
+${yellow}Executed Command:   ${green}{{ .Command }} ${reset}
+${yellow}Total iterations:   ${green}{{ .Iterations }} ${reset}
 ${yellow}Average time taken: ${green}{{ .Average }} ${reset}
 `
 

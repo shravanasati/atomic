@@ -5,20 +5,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/exec"
 	"runtime"
 	"strings"
 )
 
-// execute executes a command in the shell.
-func execute(base string, command ...string) error {
-	cmd := exec.Command(base, command...)
-	_, err := cmd.Output()
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 // Update updates bench by downloading the latest executable from github, and renaming the
 // old executable to `bench-old` so that it can be deleted by `DeletePreviousInstallation`.
@@ -36,7 +26,7 @@ func Update() {
 	case "darwin":
 		url = "https://github.com/Shravan-1908/bench/releases/latest/download/bench-darwin-amd64"
 	default:
-		Log("red", "Your OS isnt supported by bench.")
+		Log("red", "Your OS isn't supported by bench.")
 		return
 	}
 
@@ -73,7 +63,7 @@ func Update() {
 	}
 	defer exe.Close()
 
-	// * writing the recieved content to the bench executable
+	// * writing the received content to the bench executable
 	_, errr := io.Copy(exe, res.Body)
 	if errr != nil {
 		Log("red", "Error: Unable to write the executable.")
@@ -83,7 +73,7 @@ func Update() {
 
 	// * performing an additional `chmod` utility for linux and mac
 	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
-		execute("chmod", "u+x", downloadPath)
+		os.Chmod(downloadPath, 0700)
 	}
 
 	Log("green", "Bench was updated successfully.")

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 
 const (
 	// NAME is the executable name.
-	NAME    = "bench"
+	NAME = "bench"
 	// VERSION is the executable version.
 	VERSION = "0.3.0"
 )
@@ -36,12 +35,12 @@ func run(command []string, verbose bool) (time.Duration, error) {
 
 	init := time.Now()
 	if e := cmd.Start(); e != nil {
-		internal.Log("red", "The command couldnt be called!")
+		internal.Log("red", fmt.Sprintf("The command `%s` couldn't be called!", strings.Join(command, " ")))
 		internal.Log("white", e.Error())
 		return 0, e
 	}
 	if e := cmd.Wait(); e != nil {
-		internal.Log("red", "The command failed to execute!")
+		internal.Log("red", fmt.Sprintf("The command `%s` failed to execute!", strings.Join(command, " ")))
 		internal.Log("white", e.Error())
 		return 0, e
 	}
@@ -51,8 +50,7 @@ func run(command []string, verbose bool) (time.Duration, error) {
 }
 
 func main() {
-	internal.NO_COLOR = NO_COLOR
-	internal.Log("white", fmt.Sprintf("%v %v", NAME, VERSION))
+	internal.Log("white", fmt.Sprintf("%v %v\n", NAME, VERSION))
 
 	go internal.DeletePreviousInstallation()
 
@@ -67,16 +65,23 @@ func main() {
 		Register(nil).
 		SetShortDescription("Benchmark a command for given number of iterations.").
 		SetDescription("Benchmark a command for given number of iterations.").
-		AddArgument("command", "The command to run for benchmarking.", "").
-		AddArgument("iterations", "The number of iterations.", "10").
+		AddArgument("command...", "The command to run for benchmarking.", "").
+		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, 10).
 		AddFlag("export,e", "Export the benchmarking summary in a json, csv, or text format.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 
 			// * getting args and flag values
-			executable := args["command"].Value
-			command := strings.Fields(executable)
+			command := strings.Split(args["command"].Value, ",")
+
+			iterations, e := flags["iterations"].GetInt()
+			if e != nil {
+				internal.Log("red", "The number of iterations must be an integer!")
+				internal.Log("white", e.Error())
+				return
+			}
+
 			verbose, e := flags["verbose"].GetBool()
 			if e != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
@@ -87,17 +92,11 @@ func main() {
 			}
 			internal.NO_COLOR = !NO_COLOR
 
-			x, e := strconv.Atoi(args["iterations"].Value)
-			if e != nil {
-				internal.Log("red", "Invalid input for iterations value.")
-				return
-			}
-
 			var sum time.Duration
 			started := time.Now().Format("02-01-2006 15:04:05")
 
 			// * looping for given iterations
-			for i := 1; i <= x; i++ {
+			for i := 1; i <= iterations; i++ {
 				internal.Log("purple", fmt.Sprintf("***********\nRunning iteration %d\n***********", i))
 
 				dur, e := run(command, verbose)
@@ -113,9 +112,9 @@ func main() {
 			result := internal.Result{
 				Started:    started,
 				Ended:      ended,
-				Command:    executable,
-				Iterations: x,
-				Average:    (sum / time.Duration(x)).String(),
+				Command:    strings.Join(command, " "),
+				Iterations: iterations,
+				Average:    (sum / time.Duration(iterations)).String(),
 			}
 
 			result.Consolify()

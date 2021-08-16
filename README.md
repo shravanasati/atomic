@@ -22,7 +22,6 @@
 <br>
 
 ## ⚡️ Installation
-### Method 1
 
 **For Linux users:**
 
@@ -105,7 +104,7 @@ The `up` command can be used to update *bench* to the latest version right away,
 
 ### version
 `$ bench version`
-
+>
 The version command shows the version of *bench* installed.
 
 ### help
@@ -113,7 +112,7 @@ The version command shows the version of *bench* installed.
 
 Renders assistance for *bench* on a terminal, briefly showing its usage.
 
-<br>
+<br
 
 
 ## 🔖 Versioning
