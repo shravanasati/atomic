@@ -73,6 +73,11 @@ func main() {
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 
 			// * getting args and flag values
+			if strings.TrimSpace(args["command"].Value) == "" {
+				fmt.Println("Error: not enough arguments.")
+				return
+			}
+
 			command := strings.Split(args["command"].Value, ",")
 
 			iterations, e := flags["iterations"].GetInt()
