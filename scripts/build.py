@@ -28,7 +28,7 @@ def build(appname:str, platform: str) -> None:
 
 if __name__ == "__main__":
 	# add all platforms to the tuple you want to build
-	platforms = ("windows/amd64", "linux/amd64", "darwin/amd64")
+	platforms = {"windows/amd64", "linux/amd64", "darwin/amd64"}
 	appname = "bench" # name of the executable
 	multithreaded = True # set to True to enable multithreading
 
