@@ -17,7 +17,7 @@ def build(appname:str, platform: str) -> None:
 		if goos == "windows":
 			outpath += ".exe"
 
-		subprocess.check_output(["go", "build", "-v", "-o", outpath, "./cmd/bench"])
+		subprocess.check_output(["go", "build", "-v", "-o", outpath])
 
 		print(f"==> ✅ Built executable for `{platform}` at `{outpath}`.")
 

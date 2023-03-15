@@ -21,7 +21,7 @@ const (
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
 var NO_COLOR bool = false
 
-func run(command []string, verbose bool) (time.Duration, error) {
+func run(command []string, verbose bool, ignoreError bool) (time.Duration, error) {
 	cmd := exec.Command(command[0], command[1:]...)
 	_, e := cmd.StdoutPipe()
 	if e != nil {
@@ -39,7 +39,7 @@ func run(command []string, verbose bool) (time.Duration, error) {
 		internal.Log("white", e.Error())
 		return 0, e
 	}
-	if e := cmd.Wait(); e != nil {
+	if e := cmd.Wait(); e != nil && !ignoreError {
 		internal.Log("red", fmt.Sprintf("The command `%s` failed to execute!", strings.Join(command, " ")))
 		internal.Log("white", e.Error())
 		return 0, e
@@ -67,6 +67,7 @@ func main() {
 		SetDescription("Benchmark a command for given number of iterations.").
 		AddArgument("command...", "The command to run for benchmarking.", "").
 		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, 10).
+		AddFlag("ignore-error,I", "Ignore if the process returns a non-zero return code", commando.Bool, false).
 		AddFlag("export,e", "Export the benchmarking summary in a json, csv, or text format.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
@@ -97,6 +98,11 @@ func main() {
 			}
 			internal.NO_COLOR = !NO_COLOR
 
+			ignoreError, er := flags["ignore-error"].GetBool()
+			if er != nil {
+				internal.Log("red", "Application error: cannot parse flag values.")
+			}
+
 			var sum time.Duration
 			started := time.Now().Format("02-01-2006 15:04:05")
 
@@ -104,7 +110,7 @@ func main() {
 			for i := 1; i <= iterations; i++ {
 				internal.Log("purple", fmt.Sprintf("***********\nRunning iteration %d\n***********", i))
 
-				dur, e := run(command, verbose)
+				dur, e := run(command, verbose, ignoreError)
 				if e != nil {
 					return
 				}
