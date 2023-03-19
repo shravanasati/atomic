@@ -22,7 +22,7 @@ jobs:
         go-version: 1.16
 
     - name: Build
-      run: go build -v cmd/bench/main.go
+      run: go build -v
 
     - name: Test
       run: go test -v ./...
