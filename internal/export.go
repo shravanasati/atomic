@@ -27,6 +27,7 @@ ${yellow}Executed Command:   ${green}{{ .Command }} ${reset}
 ${yellow}Total iterations:   ${green}{{ .Iterations }} ${reset}
 ${yellow}Average time taken: ${green}{{ .Average }} ${reset}
 `
+// todo add standard deviation to summary
 
 // Consolify prints the benchmark summary of the Result struct to the console, with color codes.
 func (result *Result) Consolify() {

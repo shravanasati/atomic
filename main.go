@@ -15,13 +15,15 @@ const (
 	// NAME is the executable name.
 	NAME = "bench"
 	// VERSION is the executable version.
-	VERSION = "0.3.0"
+	VERSION = "0.4.0"
 )
 
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
 var NO_COLOR bool = false
 
 func run(command []string, verbose bool, ignoreError bool) (time.Duration, error) {
+	// todo add shell support
+	// todo measure shell spawn time too and deduct it from runs
 	cmd := exec.Command(command[0], command[1:]...)
 	_, e := cmd.StdoutPipe()
 	if e != nil {
