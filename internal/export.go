@@ -6,6 +6,16 @@ import (
 	"text/template"
 )
 
+// Result struct which is shown at the end as benchmarking summary and is written to a file.
+type Result struct {
+	Started           string
+	Ended             string
+	Command           string
+	Iterations        int
+	Average           string
+	StandardDeviation string
+}
+
 var summaryNoColor = `
 Benchmarking Summary
 --------------------
@@ -14,7 +24,7 @@ Started:            {{ .Started }}
 Ended:              {{ .Ended }} 
 Executed Command:   {{ .Command }} 
 Total iterations:   {{ .Iterations }} 
-Average time taken: {{ .Average }} 
+Average time taken: {{ .Average }} ± {{ .StandardDeviation }}
 `
 
 var summaryColor = `
@@ -25,9 +35,8 @@ ${yellow}Started:            ${green}{{ .Started }} ${reset}
 ${yellow}Ended:              ${green}{{ .Ended }} ${reset}
 ${yellow}Executed Command:   ${green}{{ .Command }} ${reset}
 ${yellow}Total iterations:   ${green}{{ .Iterations }} ${reset}
-${yellow}Average time taken: ${green}{{ .Average }} ${reset}
+${yellow}Average time taken: ${green}{{ .Average }} ± {{ .StandardDeviation }} ${reset}
 `
-// todo add standard deviation to summary
 
 // Consolify prints the benchmark summary of the Result struct to the console, with color codes.
 func (result *Result) Consolify() {
@@ -126,6 +135,6 @@ func (result *Result) Export(exportFormat string) {
 		markdownify(result)
 
 	} else if exportFormat != "none" {
-		Log("red", "Invalid export format: " + exportFormat + ".")
+		Log("red", "Invalid export format: "+exportFormat+".")
 	}
 }

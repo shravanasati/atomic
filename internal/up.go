@@ -1,14 +1,15 @@
 package internal
 
+// todo replace self updater with check for updates
+
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 )
-
 
 // Update updates bench by downloading the latest executable from github, and renaming the
 // old executable to `bench-old` so that it can be deleted by `DeletePreviousInstallation`.
@@ -80,11 +81,11 @@ func Update() {
 }
 
 // DeletePreviousInstallation deletes previous installation if it exists.
-func DeletePreviousInstallation() {
+func DeletePreviousInstallation(wg *sync.WaitGroup) {
 	benchDir, _ := os.UserHomeDir()
 	benchDir += "/.bench"
 
-	files, _ := ioutil.ReadDir(benchDir)
+	files, _ := os.ReadDir(benchDir)
 	for _, f := range files {
 		if strings.HasSuffix(f.Name(), "-old") {
 			// fmt.Println("found existsing installation")
@@ -92,4 +93,5 @@ func DeletePreviousInstallation() {
 		}
 		// fmt.Println(f.Name())
 	}
+	wg.Done()
 }

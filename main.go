@@ -5,11 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Shravan-1908/bench/internal"
-	"github.com/thatisuday/commando"
 	"github.com/google/shlex"
+	"github.com/thatisuday/commando"
 )
 
 const (
@@ -55,7 +56,9 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 func main() {
 	internal.Log("white", fmt.Sprintf("%v %v\n", NAME, VERSION))
 
-	go internal.DeletePreviousInstallation()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go internal.DeletePreviousInstallation(&wg)
 
 	// * basic configuration
 	commando.
@@ -130,9 +133,8 @@ func main() {
 			}
 
 			// actual runs
-			var sum time.Duration
+			var runs []int64
 			started := time.Now().Format("02-01-2006 15:04:05")
-
 			// * looping for given iterations
 			for i := 1; i <= iterations; i++ {
 				internal.Log("purple", fmt.Sprintf("***********\nRunning iteration %d\n***********", i))
@@ -141,18 +143,30 @@ func main() {
 				if e != nil {
 					return
 				}
-				sum += dur
+				runs = append(runs, (dur.Microseconds()))
 			}
 
 			ended := time.Now().Format("02-01-2006 15:04:05")
 
 			// * intialising the template struct
+			avg, stddev := internal.ComputeAverageAndStandardDeviation(runs)
+			avgString := fmt.Sprintf("%.2fus", avg)
+			avgDuration, err := time.ParseDuration(avgString)
+			if err != nil {
+				panic("unable to parse duration from string: " + avgString + "\n" + err.Error())
+			}
+			stddevString := fmt.Sprintf("%.2fus", stddev)
+			stddevDuration, err := time.ParseDuration(stddevString)
+			if err != nil {
+				panic("unable to parse duration from string: " + stddevString + "\n" + err.Error())
+			}
 			result := internal.Result{
 				Started:    started,
 				Ended:      ended,
 				Command:    strings.Join(command, " "),
 				Iterations: iterations,
-				Average:    (sum / time.Duration(iterations)).String(),
+				Average:    avgDuration.String(),
+				StandardDeviation: stddevDuration.String(),
 			}
 
 			result.Consolify()
@@ -182,4 +196,5 @@ func main() {
 		})
 
 	commando.Parse(nil)
+	wg.Wait()
 }
