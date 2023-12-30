@@ -9,6 +9,7 @@ import (
 
 	"github.com/Shravan-1908/bench/internal"
 	"github.com/thatisuday/commando"
+	"github.com/google/shlex"
 )
 
 const (
@@ -69,6 +70,7 @@ func main() {
 		SetDescription("Benchmark a command for given number of iterations.").
 		AddArgument("command...", "The command to run for benchmarking.", "").
 		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, 10).
+		AddFlag("warmup,w", "The number of warmup runs to perform.", commando.Int, 0).
 		AddFlag("ignore-error,I", "Ignore if the process returns a non-zero return code", commando.Bool, false).
 		AddFlag("export,e", "Export the benchmarking summary in a json, csv, or text format.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
@@ -81,9 +83,21 @@ func main() {
 				return
 			}
 
-			command := strings.Split(args["command"].Value, ",")
+			command, err := shlex.Split(args["command"].Value)
+			if err != nil {
+				internal.Log("red", "unable to parse the given command: " + args["command"].Value)
+				internal.Log("white", err.Error())
+				return
+			}
 
 			iterations, e := flags["iterations"].GetInt()
+			if e != nil {
+				internal.Log("red", "The number of iterations must be an integer!")
+				internal.Log("white", e.Error())
+				return
+			}
+
+			warmupRuns, e := flags["warmup"].GetInt()
 			if e != nil {
 				internal.Log("red", "The number of iterations must be an integer!")
 				internal.Log("white", e.Error())
@@ -105,6 +119,17 @@ func main() {
 				internal.Log("red", "Application error: cannot parse flag values.")
 			}
 
+			// warmup runs
+			for i := 0; i < warmupRuns; i++ {
+				// todo replace running logs with a progress bar in non-verbose mode
+				internal.Log("purple", fmt.Sprintf("***********\nRunning warmup %d\n***********", i + 1))
+				_, e := run(command, verbose, ignoreError)
+				if e != nil {
+					return
+				}
+			}
+
+			// actual runs
 			var sum time.Duration
 			started := time.Now().Format("02-01-2006 15:04:05")
 
