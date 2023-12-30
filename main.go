@@ -172,6 +172,7 @@ func main() {
 			result.Consolify()
 
 			// * getting export values
+			// todo exportFormat should support exporting into multiple formats at once
 			exportFormat, ierr := flags["export"].GetString()
 			if ierr != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
