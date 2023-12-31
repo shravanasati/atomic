@@ -4,3 +4,5 @@ github.com/thatisuday/clapper v1.0.10 h1:1EkqE/nb4npp8DuTKnpvVzO/Mcac9lOPND34uUK
 github.com/thatisuday/clapper v1.0.10/go.mod h1:FQGIg8q2uzeI+3SUS82YKF4E3KexkHStbiK4qTfDknM=
 github.com/thatisuday/commando v1.0.4 h1:aNdH9tvmx2EPG6rT3NTQOV/qFYPf4Ap4Spo+q+n9Ois=
 github.com/thatisuday/commando v1.0.4/go.mod h1:ODGz6jwJs4QqhLJtCjRRs8xIrmLLMdatYYddP+v1b4E=
+golang.org/x/mod v0.14.0 h1:dGoOF9QVLYng8IHTm7BAyWqCqSheQ5pYWGhzW00YJr0=
+golang.org/x/mod v0.14.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=

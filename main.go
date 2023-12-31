@@ -17,7 +17,7 @@ const (
 	// NAME is the executable name.
 	NAME = "bench"
 	// VERSION is the executable version.
-	VERSION = "0.4.0"
+	VERSION = "v0.4.0"
 )
 
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
@@ -58,7 +58,10 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go internal.DeletePreviousInstallation(&wg)
+	go func() {
+		internal.CheckForUpdates(VERSION)
+		wg.Done()
+	}()
 
 	// * basic configuration
 	commando.
@@ -75,7 +78,7 @@ func main() {
 		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, 10).
 		AddFlag("warmup,w", "The number of warmup runs to perform.", commando.Int, 0).
 		AddFlag("ignore-error,I", "Ignore if the process returns a non-zero return code", commando.Bool, false).
-		AddFlag("export,e", "Export the benchmarking summary in a json, csv, or text format.", commando.String, "none").
+		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
@@ -172,28 +175,12 @@ func main() {
 			result.Consolify()
 
 			// * getting export values
-			// todo exportFormat should support exporting into multiple formats at once
 			exportFormat, ierr := flags["export"].GetString()
 			if ierr != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
 			}
 			result.Export(exportFormat)
 
-		})
-
-	// * the update command
-	commando.
-		Register("up").
-		SetShortDescription("Update bench.").
-		SetDescription("Update bench to the latest version.").
-		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
-		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
-			_noColor, e := flags["color"].GetBool()
-			if e != nil {
-				internal.Log("red", "Application error: cannot parse flag values.")
-			}
-			internal.NO_COLOR = !_noColor
-			internal.Update()
 		})
 
 	commando.Parse(nil)

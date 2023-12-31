@@ -1,9 +1,12 @@
 package internal
 
 import (
+	"bufio"
 	"fmt"
 	"math"
 	"os"
+	"os/user"
+	"path/filepath"
 	"strings"
 )
 
@@ -46,4 +49,50 @@ func ComputeAverageAndStandardDeviation[T numberLike](population []T) (float64, 
 	deviationSum = math.Sqrt(deviationSum)
 
 	return avg, deviationSum
+}
+
+func checkPathExists(fp string) bool {
+	_, e := os.Stat(fp)
+	return !os.IsNotExist(e)
+}
+
+func getBenchDir() string {
+	usr, e := user.Current()
+	if e != nil {
+		panic(e)
+	}
+
+	// * determining iris's directory
+	dir := filepath.Join(usr.HomeDir, ".iris")
+
+	if !checkPathExists(dir) {
+		os.Mkdir(dir, os.ModePerm)
+	}
+
+	subDirs := []string{"wallpapers", "temp", "cache"}
+	for _, subDir := range subDirs {
+		dirPath := filepath.Join(dir, subDir)
+		if !checkPathExists(dirPath) {
+			os.Mkdir(dirPath, os.ModePerm)
+		}
+	}
+
+	return dir
+}
+
+// readFile reads the given file and returns the string content of the same.
+func readFile(file string) string {
+	f, ferr := os.Open(file)
+	if ferr != nil {
+		panic(ferr)
+	}
+	defer f.Close()
+
+	text := ""
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		text += scanner.Text()
+	}
+
+	return text
 }
