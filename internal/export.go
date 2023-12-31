@@ -170,7 +170,17 @@ func (result *Result) Export(exportFormats string) {
 				Log("red", "Failed to export the results to json.")
 				return
 			}
-			writeToFile(string(jsonText), "bench-summary.json")
+			e = writeToFile(string(jsonText), "bench-summary.json")
+			if e == nil {
+				absPath, err := filepath.Abs("bench-summary.json")
+				if err != nil {
+					Log("red", "unable to get the absolute path for json file: "+err.Error())
+				} else {
+					Log("green", "Successfully wrote benchmark summary to `"+absPath+"`.")
+				}
+			} else {
+				Log("red", "Unable to write to file ./bench-summary.json: "+e.Error())
+			}
 
 		} else if exportFormat == "csv" {
 			csvify(result)

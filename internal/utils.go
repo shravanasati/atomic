@@ -62,19 +62,11 @@ func getBenchDir() string {
 		panic(e)
 	}
 
-	// * determining iris's directory
-	dir := filepath.Join(usr.HomeDir, ".iris")
+	// * determining bench's directory
+	dir := filepath.Join(usr.HomeDir, ".bench")
 
 	if !checkPathExists(dir) {
 		os.Mkdir(dir, os.ModePerm)
-	}
-
-	subDirs := []string{"wallpapers", "temp", "cache"}
-	for _, subDir := range subDirs {
-		dirPath := filepath.Join(dir, subDir)
-		if !checkPathExists(dirPath) {
-			os.Mkdir(dirPath, os.ModePerm)
-		}
 	}
 
 	return dir

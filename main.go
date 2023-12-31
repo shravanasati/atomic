@@ -17,7 +17,7 @@ const (
 	// NAME is the executable name.
 	NAME = "bench"
 	// VERSION is the executable version.
-	VERSION = "v0.4.0"
+	VERSION = "v0.2.0"
 )
 
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
@@ -91,7 +91,7 @@ func main() {
 
 			command, err := shlex.Split(args["command"].Value)
 			if err != nil {
-				internal.Log("red", "unable to parse the given command: " + args["command"].Value)
+				internal.Log("red", "unable to parse the given command: "+args["command"].Value)
 				internal.Log("white", err.Error())
 				return
 			}
@@ -128,7 +128,7 @@ func main() {
 			// warmup runs
 			for i := 0; i < warmupRuns; i++ {
 				// todo replace running logs with a progress bar in non-verbose mode
-				internal.Log("purple", fmt.Sprintf("***********\nRunning warmup %d\n***********", i + 1))
+				internal.Log("purple", fmt.Sprintf("***********\nRunning warmup %d\n***********", i+1))
 				_, e := run(command, verbose, ignoreError)
 				if e != nil {
 					return
@@ -164,11 +164,11 @@ func main() {
 				panic("unable to parse duration from string: " + stddevString + "\n" + err.Error())
 			}
 			result := internal.Result{
-				Started:    started,
-				Ended:      ended,
-				Command:    strings.Join(command, " "),
-				Iterations: iterations,
-				Average:    avgDuration.String(),
+				Started:           started,
+				Ended:             ended,
+				Command:           strings.Join(command, " "),
+				Iterations:        iterations,
+				Average:           avgDuration.String(),
 				StandardDeviation: stddevDuration.String(),
 			}
 

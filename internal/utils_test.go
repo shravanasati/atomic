@@ -1,8 +1,8 @@
 package internal
 
 import (
-	"testing"
 	"os"
+	"testing"
 )
 
 func Test_format(t *testing.T) {
@@ -17,20 +17,20 @@ func Test_format(t *testing.T) {
 		want string
 	}{
 		{
-			name: "empty test", 
-			args: args{"", map[string]string{}}, 
+			name: "empty test",
+			args: args{"", map[string]string{}},
 			want: "",
 		},
 
 		{
-			name: "name test", 
-			args: args{"hello this is me, ${name}", map[string]string{"name": "Shravan"}}, 
+			name: "name test",
+			args: args{"hello this is me, ${name}", map[string]string{"name": "Shravan"}},
 			want: "hello this is me, Shravan",
 		},
 
 		{
-			name: "long sentence test", 
-			args: args{"${go} offers cool concurrency features like ${c1} and ${c2}. and it's ${adj}!", map[string]string{"go": "Golang", "c1": "goroutines", "c2": "channels", "adj": "amazing"}}, 
+			name: "long sentence test",
+			args: args{"${go} offers cool concurrency features like ${c1} and ${c2}. and it's ${adj}!", map[string]string{"go": "Golang", "c1": "goroutines", "c2": "channels", "adj": "amazing"}},
 			want: "Golang offers cool concurrency features like goroutines and channels. and it's amazing!",
 		},
 	}
@@ -71,7 +71,7 @@ func Test_writeToFile(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := writeToFile(tt.args.text, tt.args.filename); (err != nil) != tt.wantErr {

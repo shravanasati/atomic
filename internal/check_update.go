@@ -74,7 +74,7 @@ type releaseInfo struct {
 }
 
 func (ri releaseInfo) display() {
-	fmt.Printf("\nnote: new `%s` of iris is now available at `%s` \n\nfull release article: \n%s \n%s\n", ri.TagName, ri.HTMLURL, ri.Name, ri.Body)
+	fmt.Printf("\nnote: new `%s` of bench is now available at `%s` \n\nfull release article: \n%s \n%s\n", ri.TagName, ri.HTMLURL, ri.Name, ri.Body)
 }
 
 func CheckForUpdates(currentVersion string) {
@@ -84,7 +84,7 @@ func CheckForUpdates(currentVersion string) {
 		return
 	}
 
-	url := "https://api.github.com/repos/Shravan-1908/iris/releases/latest"
+	url := "https://api.github.com/repos/Shravan-1908/bench/releases/latest"
 	releaseInfo := releaseInfo{}
 	resp, err := http.Get(url)
 	if err != nil {
@@ -96,6 +96,7 @@ func CheckForUpdates(currentVersion string) {
 	}
 	json.Unmarshal(data, &releaseInfo)
 	writeLastCheckedTime(now)
+
 	if compareSemverStrings(releaseInfo.TagName, currentVersion) != greater {
 		// no new version
 		return
