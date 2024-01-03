@@ -10,6 +10,7 @@ import (
 
 	"github.com/Shravan-1908/bench/internal"
 	"github.com/google/shlex"
+	"github.com/schollz/progressbar/v3"
 	"github.com/thatisuday/commando"
 )
 
@@ -17,7 +18,7 @@ const (
 	// NAME is the executable name.
 	NAME = "bench"
 	// VERSION is the executable version.
-	VERSION = "v0.2.0"
+	VERSION = "v0.4.0"
 )
 
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
@@ -51,6 +52,66 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 	duration := time.Since(init)
 
 	return duration, nil
+}
+
+func benchmark(iterations int, command []string, verbose bool, ignoreError bool, warmup bool) ([]int64, bool) {
+	// actual runs, each entry stored in microseconds
+	var runs []int64
+
+	// * looping for given iterations
+	if verbose {
+		word := ""
+		if warmup {
+			word = "warmup"
+		} else {
+			word = "iteration"
+		}
+		for i := 1; i <= iterations; i++ {
+			internal.Log("purple", fmt.Sprintf("***********\nRunning "+word+" %d\n***********", i))
+
+			dur, e := run(command, verbose, ignoreError)
+			if e != nil {
+				return nil, true
+			}
+			runs = append(runs, (dur.Microseconds()))
+		}
+	} else {
+		description := ""
+		if warmup {
+			description = "Performing warmup runs"
+		} else {
+			description = "Performing benchmark runs"
+		}
+		pbarOptions := []progressbar.Option{
+			progressbar.OptionClearOnFinish(),
+			progressbar.OptionSetDescription("[magenta]" + description + "[reset]"),
+			progressbar.OptionSetPredictTime(true),
+			progressbar.OptionSetTheme(progressbar.Theme{
+				Saucer:        "[green]=[reset]",
+				SaucerHead:    "[green]>[reset]",
+				SaucerPadding: " ",
+				BarStart:      "|",
+				BarEnd:        "|",
+			}),
+		}
+		if NO_COLOR {
+			pbarOptions = append(pbarOptions, progressbar.OptionEnableColorCodes(true))
+		}
+		bar := progressbar.NewOptions(
+			iterations, pbarOptions...,
+		)
+		for i := 1; i <= iterations; i++ {
+			bar.Add(1)
+			dur, e := run(command, verbose, ignoreError)
+			if e != nil {
+				bar.Finish()
+				return nil, true
+			}
+			// bar.Describe(fmt.Sprintf("Current estimate: %s", dur.String()))
+			runs = append(runs, (dur.Microseconds()))
+		}
+	}
+	return runs, false
 }
 
 func main() {
@@ -126,30 +187,17 @@ func main() {
 				return
 			}
 
-			// warmup runs
-			for i := 0; i < warmupRuns; i++ {
-				// todo replace running logs with a progress bar in non-verbose mode
-				internal.Log("purple", fmt.Sprintf("***********\nRunning warmup %d\n***********", i+1))
-				_, e := run(command, verbose, ignoreError)
-				if e != nil {
-					return
-				}
+			// no need for runs in warmups
+			_, shouldReturn := benchmark(warmupRuns, command, verbose, ignoreError, true)
+			if shouldReturn {
+				return
 			}
 
-			// actual runs, each entry stored in microseconds
-			var runs []int64
 			started := time.Now().Format("02-01-2006 15:04:05")
-			// * looping for given iterations
-			for i := 1; i <= iterations; i++ {
-				internal.Log("purple", fmt.Sprintf("***********\nRunning iteration %d\n***********", i))
-
-				dur, e := run(command, verbose, ignoreError)
-				if e != nil {
-					return
-				}
-				runs = append(runs, (dur.Microseconds()))
+			runs, shouldReturn := benchmark(iterations, command, verbose, ignoreError, false)
+			if shouldReturn {
+				return
 			}
-
 			ended := time.Now().Format("02-01-2006 15:04:05")
 
 			// * intialising the template struct

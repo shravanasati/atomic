@@ -31,7 +31,7 @@ Ended:              {{ .Ended }}
 Executed Command:   {{ .Command }} 
 Total iterations:   {{ .Iterations }} 
 Average time taken: {{ .Average }} ± {{ .StandardDeviation }}
-Range:				{{ .Min }} ... {{ .Max }}
+Range:              {{ .Min }} ... {{ .Max }}
 `
 
 var summaryColor = `

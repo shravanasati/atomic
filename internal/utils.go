@@ -109,11 +109,12 @@ func DurationFromNumber[T numberLike](number T, unit time.Duration) (time.Durati
 		// this function is only used internally, panic if unknown time unit is passed
 		panic("unknown time unit in DurationFromNumber: " + unit.String())
 	}
-	timeString := fmt.Sprintf("%v%v", roundFloat(float64(number), 2), suffix)
+	numberFloat := roundFloat(float64(number), 2)
+	timeString := fmt.Sprintf("%.2f%v", numberFloat, suffix)
 	duration, err := time.ParseDuration(timeString)
 	if err != nil {
 		// again, function only used internally, invalid duration must not be present
-		panic("unable to parse duration: " + timeString + " in DurationFromNumber: " + err.Error())
+		panic("unable to parse duration: " + timeString + " in DurationFromNumber \n" + err.Error())
 	}
 	return duration
 }
