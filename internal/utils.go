@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // formats the text in a javascript like syntax.
@@ -87,4 +88,27 @@ func readFile(file string) string {
 	}
 
 	return text
+}
+
+func DurationFromNumber[T numberLike](number T, unit time.Duration) (time.Duration) {
+	unitToSuffixMap := map[time.Duration]string{
+		time.Nanosecond: "ns",
+		time.Microsecond: "us",
+		time.Millisecond: "ms",
+		time.Second: "s",
+		time.Minute: "m",
+		time.Hour: "h",
+	}
+	suffix, ok := unitToSuffixMap[unit]
+	if ! ok {
+		// this function is only used internally, panic if unknown time unit is passed
+		panic("unknown time unit in DurationFromNumber: " + unit.String())
+	}
+	timeString := fmt.Sprintf("%.2v%v", number, suffix)
+	duration, err := time.ParseDuration(timeString)
+	if err != nil {
+		// again, function only used internally, invalid duration must not be present
+		panic("unable to parse duration in DurationFromNumber: " + err.Error())
+	}
+	return duration
 }

@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Shravan-1908/bench/internal"
@@ -22,6 +21,8 @@ const (
 
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
 var NO_COLOR bool = false
+
+// todo add range too
 
 func run(command []string, verbose bool, ignoreError bool) (time.Duration, error) {
 	// todo add shell support
@@ -56,12 +57,8 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 func main() {
 	internal.Log("white", fmt.Sprintf("%v %v\n", NAME, VERSION))
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		internal.CheckForUpdates(VERSION)
-		wg.Done()
-	}()
+	updateCh := make(chan string, 1)
+	go internal.CheckForUpdates(VERSION, &updateCh)
 
 	// * basic configuration
 	commando.
@@ -153,16 +150,8 @@ func main() {
 
 			// * intialising the template struct
 			avg, stddev := internal.ComputeAverageAndStandardDeviation(runs)
-			avgString := fmt.Sprintf("%.2fus", avg)
-			avgDuration, err := time.ParseDuration(avgString)
-			if err != nil {
-				panic("unable to parse duration from string: " + avgString + "\n" + err.Error())
-			}
-			stddevString := fmt.Sprintf("%.2fus", stddev)
-			stddevDuration, err := time.ParseDuration(stddevString)
-			if err != nil {
-				panic("unable to parse duration from string: " + stddevString + "\n" + err.Error())
-			}
+			avgDuration := internal.DurationFromNumber(avg, time.Microsecond)
+			stddevDuration := internal.DurationFromNumber(stddev, time.Microsecond)
 			result := internal.Result{
 				Started:           started,
 				Ended:             ended,
@@ -178,11 +167,12 @@ func main() {
 			exportFormat, ierr := flags["export"].GetString()
 			if ierr != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
+				return
 			}
 			result.Export(exportFormat)
 
 		})
 
 	commando.Parse(nil)
-	wg.Wait()
+	fmt.Println(<-updateCh)
 }

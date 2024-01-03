@@ -73,14 +73,15 @@ type releaseInfo struct {
 	Body       string `json:"body"`
 }
 
-func (ri releaseInfo) display() {
-	fmt.Printf("\nnote: new `%s` of bench is now available at `%s` \n\nfull release article: \n%s \n%s\n", ri.TagName, ri.HTMLURL, ri.Name, ri.Body)
+func (ri releaseInfo) String() string {
+	return fmt.Sprintf("\nnote: new `%s` of bench is now available at `%s` \n\nfull release article: \n%s \n%s\n", ri.TagName, ri.HTMLURL, ri.Name, ri.Body)
 }
 
-func CheckForUpdates(currentVersion string) {
+func CheckForUpdates(currentVersion string, updateCh *chan string) {
 	now := time.Now()
 	if !(now.Sub(getLastCheckedTime()).Hours() >= 24) {
 		// updates were checked for within 24 hours
+		*updateCh <- ""
 		return
 	}
 
@@ -88,10 +89,12 @@ func CheckForUpdates(currentVersion string) {
 	releaseInfo := releaseInfo{}
 	resp, err := http.Get(url)
 	if err != nil {
+		*updateCh <- ""
 		return
 	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
+		*updateCh <- ""
 		return
 	}
 	json.Unmarshal(data, &releaseInfo)
@@ -99,12 +102,14 @@ func CheckForUpdates(currentVersion string) {
 
 	if compareSemverStrings(releaseInfo.TagName, currentVersion) != greater {
 		// no new version
+		*updateCh <- ""
 		return
 	}
 	if releaseInfo.IsDraft || releaseInfo.IsPrelease {
 		// dont want to tell users about draft or prereleases
+		*updateCh <- ""
 		return
 	}
 
-	releaseInfo.display()
+	*updateCh <- releaseInfo.String()
 }
