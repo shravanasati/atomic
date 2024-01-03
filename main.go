@@ -181,8 +181,15 @@ func main() {
 			}
 			result.Export(exportFormat)
 
+			outliersDetected := internal.TestOutliers(runs)
+			if outliersDetected {
+				internal.Log("yellow", "\nWarning: Statistical outliers were detected. Consider re-running this benchmark on a quiet system, devoid of any interferences from other programs.")
+				if warmupRuns == 0 {
+					internal.Log("yellow", "It might help to use the --warmup flag.")
+				}
+			}
+
 		})
-		// todo detect statistical outliers
 
 	commando.Parse(nil)
 }

@@ -28,6 +28,17 @@ func MapFunc[T any, S any](function func (T) S, slice []T) ([]S) {
 	return mappedSlice
 }
 
+// Filter takes a predicate function and returns all the elements of the slice which return true for the function.
+func Filter[T any](function func(T) bool, slice []T) []T {
+	var filtered []T
+	for _, v := range slice {
+		if function(v) {
+			filtered = append(filtered, v)
+		}
+	}
+	return filtered
+}
+
 // writeToFile writes text string to the given filename.
 func writeToFile(text, filename string) (err error) {
 	f, err := os.Create(filename)
@@ -45,26 +56,6 @@ func roundFloat(num float64, digits int) float64 {
 	return math.Round(num * tenMultiplier) / tenMultiplier
 }
 
-type numberLike interface {
-	~int | ~float64 | ~int32 | ~int64 | ~float32
-}
-
-func ComputeAverageAndStandardDeviation[T numberLike](population []T) (float64, float64) {
-	var deviationSum float64 = 0
-	var avg float64 = 0
-	n := float64(len(population))
-	for _, v := range population {
-		avg += float64(v)
-	}
-	avg /= n
-	for _, v := range population {
-		deviationSum += math.Pow((float64(v) - avg), 2)
-	}
-	deviationSum /= n
-	deviationSum = math.Sqrt(deviationSum)
-
-	return roundFloat(avg, 2), roundFloat(deviationSum, 2)
-}
 
 func checkPathExists(fp string) bool {
 	_, e := os.Stat(fp)
@@ -118,11 +109,11 @@ func DurationFromNumber[T numberLike](number T, unit time.Duration) (time.Durati
 		// this function is only used internally, panic if unknown time unit is passed
 		panic("unknown time unit in DurationFromNumber: " + unit.String())
 	}
-	timeString := fmt.Sprintf("%v%v", number, suffix)
+	timeString := fmt.Sprintf("%v%v", roundFloat(float64(number), 2), suffix)
 	duration, err := time.ParseDuration(timeString)
 	if err != nil {
 		// again, function only used internally, invalid duration must not be present
-		panic("unable to parse duration" + timeString + "in DurationFromNumber: " + err.Error())
+		panic("unable to parse duration: " + timeString + " in DurationFromNumber: " + err.Error())
 	}
 	return duration
 }
