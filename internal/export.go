@@ -16,6 +16,8 @@ type Result struct {
 	Iterations        int
 	Average           string
 	StandardDeviation string
+	Min               string
+	Max               string
 }
 
 // todo in all exports, include individual run details
@@ -29,6 +31,7 @@ Ended:              {{ .Ended }}
 Executed Command:   {{ .Command }} 
 Total iterations:   {{ .Iterations }} 
 Average time taken: {{ .Average }} ± {{ .StandardDeviation }}
+Range:				{{ .Min }} ... {{ .Max }}
 `
 
 var summaryColor = `
@@ -40,6 +43,7 @@ ${yellow}Ended:              ${green}{{ .Ended }} ${reset}
 ${yellow}Executed Command:   ${green}{{ .Command }} ${reset}
 ${yellow}Total iterations:   ${green}{{ .Iterations }} ${reset}
 ${yellow}Average time taken: ${green}{{ .Average }} ± {{ .StandardDeviation }} ${reset}
+${yellow}Range:              ${green}{{ .Min }} ... {{ .Max }} ${reset}
 `
 
 // Consolify prints the benchmark summary of the Result struct to the console, with color codes.
@@ -101,6 +105,7 @@ func markdownify(r *Result) {
 | Executed Command   | {{.Command}}   						   |
 | Total iterations   | {{.Iterations}} 						   |
 | Average time taken | {{.Average}} ± {{ .StandardDeviation }} |
+| Range				 | {{.Min}} ... {{ .Max }}   			   |
 `
 	tmpl, err := template.New("summary").Parse(text)
 	if err != nil {
@@ -133,8 +138,8 @@ func jsonify(r *Result) ([]byte, error) {
 // csvify converts the Result struct to CSV.
 func csvify(r *Result) {
 	text := `
-Started,Ended,Executed Command,Total iterations,Average time taken
-{{.Started}}, {{.Ended}}, {{.Command}}, {{.Iterations}}, {{.Average}} ± {{ .StandardDeviation }}
+Started,Ended,Executed Command,Total iterations,Average time taken,Range
+{{.Started}}, {{.Ended}}, {{.Command}}, {{.Iterations}}, {{.Average}} ± {{ .StandardDeviation }}, {{.Min}} ... {{.Max}}
 `
 	tmpl, err := template.New("summary").Parse(text)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -21,8 +22,6 @@ const (
 
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
 var NO_COLOR bool = false
-
-// todo add range too
 
 func run(command []string, verbose bool, ignoreError bool) (time.Duration, error) {
 	// todo add shell support
@@ -59,6 +58,7 @@ func main() {
 
 	updateCh := make(chan string, 1)
 	go internal.CheckForUpdates(VERSION, &updateCh)
+	defer fmt.Println(<-updateCh)
 
 	// * basic configuration
 	commando.
@@ -122,6 +122,10 @@ func main() {
 				internal.Log("red", "Application error: cannot parse flag values.")
 			}
 
+			if iterations <= 0 {
+				return
+			}
+
 			// warmup runs
 			for i := 0; i < warmupRuns; i++ {
 				// todo replace running logs with a progress bar in non-verbose mode
@@ -132,7 +136,7 @@ func main() {
 				}
 			}
 
-			// actual runs
+			// actual runs, each entry stored in microseconds
 			var runs []int64
 			started := time.Now().Format("02-01-2006 15:04:05")
 			// * looping for given iterations
@@ -152,6 +156,10 @@ func main() {
 			avg, stddev := internal.ComputeAverageAndStandardDeviation(runs)
 			avgDuration := internal.DurationFromNumber(avg, time.Microsecond)
 			stddevDuration := internal.DurationFromNumber(stddev, time.Microsecond)
+			max_ := slices.Max(runs)
+			min_ := slices.Min(runs)
+			maxDuration := internal.DurationFromNumber(max_, time.Microsecond)
+			minDuration := internal.DurationFromNumber(min_, time.Microsecond)
 			result := internal.Result{
 				Started:           started,
 				Ended:             ended,
@@ -159,6 +167,8 @@ func main() {
 				Iterations:        iterations,
 				Average:           avgDuration.String(),
 				StandardDeviation: stddevDuration.String(),
+				Max:               maxDuration.String(),
+				Min:               minDuration.String(),
 			}
 
 			result.Consolify()
@@ -172,7 +182,7 @@ func main() {
 			result.Export(exportFormat)
 
 		})
+		// todo detect statistical outliers
 
 	commando.Parse(nil)
-	fmt.Println(<-updateCh)
 }
