@@ -107,7 +107,9 @@ func benchmark(iterations int, command []string, verbose bool, ignoreError bool,
 				bar.Finish()
 				return nil, true
 			}
-			// bar.Describe(fmt.Sprintf("Current estimate: %s", dur.String()))
+			if !warmup {
+				bar.Describe(fmt.Sprintf("Current estimate: %s", dur.String()))
+			}
 			runs = append(runs, (dur.Microseconds()))
 		}
 	}
