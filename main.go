@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -32,8 +33,32 @@ const (
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
 var NO_COLOR bool = false
 
+var WINDOWS = runtime.GOOS == "windows"
+
+// builds the given command as per the given params.
+// if useShell is true, adds a shell in front of the command.
+// returns the built command and a boolean value indicating whether
+// the application should quit in case it is unable to build a command.
+func buildCommand(command string, useShell bool) ([]string, error) {
+	var builtCommand []string
+	var err error
+	if useShell {
+		if WINDOWS {
+			// windows
+			// todo first test if powershell is present and use it if present
+			// fall back to cmd.exe if pwsh absent
+		} else {
+			// posix
+			command = fmt.Sprintf("/bin/sh -c \"%s\"", command)
+			builtCommand, err = shlex.Split(command)
+		}
+	} else {
+		builtCommand, err = shlex.Split(command)
+	}
+	return builtCommand, err
+}
+
 func run(command []string, verbose bool, ignoreError bool) (time.Duration, error) {
-	// todo add shell support
 	// todo measure shell spawn time too and deduct it from runs
 	cmd := exec.Command(command[0], command[1:]...)
 	_, e := cmd.StdoutPipe()
@@ -64,7 +89,7 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 
 	return duration, nil
 }
-
+// todo automatically determine the number of runs
 func benchmark(iterations int, command []string, verbose bool, ignoreError bool, mode benchmarkMode) ([]int64, bool) {
 	// actual runs, each entry stored in microseconds
 	var runs []int64
@@ -126,7 +151,7 @@ func benchmark(iterations int, command []string, verbose bool, ignoreError bool,
 				return nil, true
 			}
 			if mode == mainMode {
-				bar.Describe(fmt.Sprintf("Current estimate: %s", dur.String()))
+				bar.Describe(fmt.Sprintf("[magenta]Current estimate:[reset] [green]%s[reset]", dur.String()))
 			}
 			runs = append(runs, (dur.Microseconds()))
 		}
@@ -156,6 +181,7 @@ func main() {
 		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, 10).
 		AddFlag("warmup,w", "The number of warmup runs to perform.", commando.Int, 0).
 		AddFlag("ignore-error,I", "Ignore if the process returns a non-zero return code", commando.Bool, false).
+		AddFlag("shell,s", "Whether to use shell to execute the given command.", commando.Bool, false).
 		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
@@ -167,12 +193,7 @@ func main() {
 				return
 			}
 
-			command, err := shlex.Split(args["command"].Value)
-			if err != nil {
-				internal.Log("red", "unable to parse the given command: "+args["command"].Value)
-				internal.Log("white", err.Error())
-				return
-			}
+			commandString := (args["command"].Value)
 
 			iterations, e := flags["iterations"].GetInt()
 			if e != nil {
@@ -203,7 +224,19 @@ func main() {
 				internal.Log("red", "Application error: cannot parse flag values.")
 			}
 
+			useShell, er := flags["shell"].GetBool()
+			if er != nil {
+				internal.Log("red", "Application error: cannot parse flag values.")
+			}
+
 			if iterations <= 0 {
+				return
+			}
+
+			command, err := buildCommand(commandString, useShell)
+			if err != nil {
+				internal.Log("error", "unable to parse the given command: " + commandString)
+				internal.Log("error", "error: " + err.Error())
 				return
 			}
 
@@ -254,6 +287,8 @@ func main() {
 				internal.Log("yellow", "\nWarning: Statistical outliers were detected. Consider re-running this benchmark on a quiet system, devoid of any interferences from other programs.")
 				if warmupRuns == 0 {
 					internal.Log("yellow", "It might help to use the --warmup flag.")
+				} else {
+					internal.Log("yellow", "Since you're already using the --warmup flag, you can consider increasing the warmup count.")
 				}
 			}
 
