@@ -21,6 +21,14 @@ const (
 	VERSION = "v0.4.0"
 )
 
+type benchmarkMode int
+
+const (
+	shellMode  benchmarkMode = 0
+	warmupMode benchmarkMode = 1
+	mainMode   benchmarkMode = 2
+)
+
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
 var NO_COLOR bool = false
 
@@ -38,33 +46,45 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 		cmd.Stderr = os.Stderr
 	}
 
-	init := time.Now()
 	if e := cmd.Start(); e != nil {
 		internal.Log("red", fmt.Sprintf("The command `%s` couldn't be called!", strings.Join(command, " ")))
 		internal.Log("white", e.Error())
 		return 0, e
 	}
-	if e := cmd.Wait(); e != nil && !ignoreError {
+
+	init := time.Now()
+	e = cmd.Wait()
+	duration := time.Since(init)
+
+	if e != nil && !ignoreError {
 		internal.Log("red", fmt.Sprintf("The command `%s` failed to execute!", strings.Join(command, " ")))
 		internal.Log("white", e.Error())
 		return 0, e
 	}
-	duration := time.Since(init)
 
 	return duration, nil
 }
 
-func benchmark(iterations int, command []string, verbose bool, ignoreError bool, warmup bool) ([]int64, bool) {
+func benchmark(iterations int, command []string, verbose bool, ignoreError bool, mode benchmarkMode) ([]int64, bool) {
 	// actual runs, each entry stored in microseconds
 	var runs []int64
+	wordMap := map[benchmarkMode]string{
+		shellMode:  "shell",
+		warmupMode: "warmup",
+		mainMode:   "iteration",
+	}
+	descriptionMap := map[benchmarkMode]string{
+		shellMode: "Measuring shell spawn time",
+		warmupMode: "Performing warmup runs",
+		mainMode: "Performing benchmark runs",
+	}
 
 	// * looping for given iterations
 	if verbose {
-		word := ""
-		if warmup {
-			word = "warmup"
-		} else {
-			word = "iteration"
+		word, ok := wordMap[mode]
+		if !ok {
+			// used internally, ok to panic
+			panic(fmt.Sprintf("invalid mode passed to benchmark: %v", mode))
 		}
 		for i := 1; i <= iterations; i++ {
 			internal.Log("purple", fmt.Sprintf("***********\nRunning "+word+" %d\n***********", i))
@@ -76,11 +96,9 @@ func benchmark(iterations int, command []string, verbose bool, ignoreError bool,
 			runs = append(runs, (dur.Microseconds()))
 		}
 	} else {
-		description := ""
-		if warmup {
-			description = "Performing warmup runs"
-		} else {
-			description = "Performing benchmark runs"
+		description, ok := descriptionMap[mode]
+		if !ok {
+			panic(fmt.Sprintf("invalid mode passed to benchmark: %v", mode))
 		}
 		pbarOptions := []progressbar.Option{
 			progressbar.OptionClearOnFinish(),
@@ -107,7 +125,7 @@ func benchmark(iterations int, command []string, verbose bool, ignoreError bool,
 				bar.Finish()
 				return nil, true
 			}
-			if !warmup {
+			if mode == mainMode {
 				bar.Describe(fmt.Sprintf("Current estimate: %s", dur.String()))
 			}
 			runs = append(runs, (dur.Microseconds()))
@@ -190,13 +208,13 @@ func main() {
 			}
 
 			// no need for runs in warmups
-			_, shouldReturn := benchmark(warmupRuns, command, verbose, ignoreError, true)
+			_, shouldReturn := benchmark(warmupRuns, command, verbose, ignoreError, warmupMode)
 			if shouldReturn {
 				return
 			}
 
 			started := time.Now().Format("02-01-2006 15:04:05")
-			runs, shouldReturn := benchmark(iterations, command, verbose, ignoreError, false)
+			runs, shouldReturn := benchmark(iterations, command, verbose, ignoreError, mainMode)
 			if shouldReturn {
 				return
 			}
