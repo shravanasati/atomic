@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -35,6 +36,17 @@ var NO_COLOR bool = false
 
 var WINDOWS = runtime.GOOS == "windows"
 
+// returns true if powershell is available on the system
+func _testPowershell() bool {
+	cmd := exec.Command("powershell", "-h")
+	err := cmd.Start()
+	if err != nil {
+		return false
+	}
+	err = cmd.Wait()
+	return err == nil
+}
+
 // builds the given command as per the given params.
 // if useShell is true, adds a shell in front of the command.
 // returns the built command and a boolean value indicating whether
@@ -45,8 +57,29 @@ func buildCommand(command string, useShell bool) ([]string, error) {
 	if useShell {
 		if WINDOWS {
 			// windows
-			// todo first test if powershell is present and use it if present
-			// fall back to cmd.exe if pwsh absent
+			// first test if powershell is present and use it if present
+			if _testPowershell() {
+				command = fmt.Sprintf("powershell -Command \"%s\"", command)
+				builtCommand, err = shlex.Split(command)
+			} else {
+				// fall back to cmd.exe if pwsh absent
+
+				// lookup the comspec env variable -> it contains the path to cmd.exe
+				comspec, ok := os.LookupEnv("ComSpec")
+				if ok {
+					command = fmt.Sprintf("%s /c \"%s\"", comspec, command)
+					builtCommand, err = shlex.Split(command)
+				} else {
+					// otherwise find cmd.exe in $SystemRoot/System32
+					systemRoot, ok := os.LookupEnv("SystemRoot")
+					if !ok {
+						return builtCommand, fmt.Errorf("buildCommand with useShell=true on windows: neither ComSpec nor SystemRoot is set")
+					}
+					comspec = filepath.Join(systemRoot, "System32", "cmd.exe")
+					command = fmt.Sprintf("%s /c \"%s\"", comspec, command)
+					builtCommand, err = shlex.Split(command)
+				}
+			}
 		} else {
 			// posix
 			command = fmt.Sprintf("/bin/sh -c \"%s\"", command)
@@ -65,13 +98,14 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 	if e != nil {
 		panic(e)
 	}
-
+	
 	if verbose {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
-
+	
 	if e := cmd.Start(); e != nil {
+		// todo refactor this code to just return errors instead of logging
 		internal.Log("red", fmt.Sprintf("The command `%s` couldn't be called!", strings.Join(command, " ")))
 		internal.Log("white", e.Error())
 		return 0, e
