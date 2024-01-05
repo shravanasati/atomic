@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -105,6 +106,16 @@ func buildCommand(command string, useShell bool) ([]string, error) {
 	return builtCommand, err
 }
 
+type failedProcessError struct {
+	command []string
+	err     error
+	mode    string
+}
+
+func (fpe *failedProcessError) Error() string {
+	return fmt.Sprintf("The command `%s` failed in the process of %s!\n%s", strings.Join(fpe.command, " "), fpe.mode, fpe.err.Error())
+}
+
 // runs the built command using os/exec and returns the duration the command lasted
 func run(command []string, verbose bool, ignoreError bool) (time.Duration, error) {
 	// todo measure shell spawn time too and deduct it from runs
@@ -120,10 +131,7 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 	}
 
 	if e := cmd.Start(); e != nil {
-		// todo refactor this code to just return errors instead of logging
-		internal.Log("red", fmt.Sprintf("The command `%s` couldn't be called!", strings.Join(command, " ")))
-		internal.Log("white", e.Error())
-		return 0, e
+		return 0, &failedProcessError{command: command, err: e, mode: "starting"}
 	}
 
 	init := time.Now()
@@ -131,9 +139,7 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 	duration := time.Since(init)
 
 	if e != nil && !ignoreError {
-		internal.Log("red", fmt.Sprintf("The command `%s` failed to execute!", strings.Join(command, " ")))
-		internal.Log("white", e.Error())
-		return 0, e
+		return 0, &failedProcessError{command: command, err: e, mode: "execution"}
 	}
 
 	return duration, nil
@@ -153,6 +159,7 @@ func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 		warmupMode: "Performing warmup runs",
 		mainMode:   "Performing benchmark runs",
 	}
+	var processErr *failedProcessError
 
 	// * looping for given iterations
 	if opts.verbose {
@@ -167,12 +174,14 @@ func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 			// dont ignore errors in prepare command execution, dont output it either
 			if opts.executePrepareCmd {
 				_, e := run(opts.prepareCmd, false, false)
-				if e != nil {
+				if errors.As(e, &processErr) {
+					internal.Log("red", processErr.Error())
 					return nil, true
 				}
 			}
 			dur, e := run(opts.command, opts.verbose, opts.ignoreError)
-			if e != nil {
+			if errors.As(e, &processErr) {
+				internal.Log("red", processErr.Error())
 				return nil, true
 			}
 			runs = append(runs, (dur.Microseconds()))
@@ -205,20 +214,22 @@ func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 			// dont ignore errors in prepare command execution, dont output it either
 			if opts.executePrepareCmd {
 				_, e := run(opts.prepareCmd, false, false)
-				if e != nil {
+				if errors.As(e, &processErr) {
+					internal.Log("red", processErr.Error())
 					return nil, true
 				}
 			}
 			bar.Add(1)
 			dur, e := run(opts.command, opts.verbose, opts.ignoreError)
-			if e != nil {
-				bar.Finish()
+			if errors.As(e, &processErr) {
+				bar.Clear()
+				internal.Log("red", processErr.Error())
 				return nil, true
 			}
 			runs = append(runs, (dur.Microseconds()))
 			if opts.mode == mainMode {
 				bar.Describe(
-					fmt.Sprintf("[magenta]Current estimate:[reset] [green]%s[reset]", 
+					fmt.Sprintf("[magenta]Current estimate:[reset] [green]%s[reset]",
 						internal.DurationFromNumber(
 							internal.CalculateAverage(runs), time.Microsecond).String(),
 					),
@@ -247,6 +258,7 @@ func main() {
 	const dummyDefault = "~!_none_!~"
 
 	// * root command
+	// todo add a timeout flag
 	commando.
 		Register(nil).
 		SetShortDescription("Benchmark a command for given number of iterations.").
