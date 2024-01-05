@@ -31,9 +31,21 @@ const (
 	mainMode   benchmarkMode = 2
 )
 
+type BenchmarkOptions struct {
+	command           []string
+	iterations        int
+	warmupRuns        int
+	verbose           bool
+	ignoreError       bool
+	executePrepareCmd bool
+	prepareCmd        []string
+	mode              benchmarkMode
+}
+
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
 var NO_COLOR bool = false
 
+// Tells if the current system is windows.
 var WINDOWS = runtime.GOOS == "windows"
 
 // returns true if powershell is available on the system
@@ -46,6 +58,8 @@ func _testPowershell() bool {
 	err = cmd.Wait()
 	return err == nil
 }
+
+// func getShell()
 
 // builds the given command as per the given params.
 // if useShell is true, adds a shell in front of the command.
@@ -91,6 +105,7 @@ func buildCommand(command string, useShell bool) ([]string, error) {
 	return builtCommand, err
 }
 
+// runs the built command using os/exec and returns the duration the command lasted
 func run(command []string, verbose bool, ignoreError bool) (time.Duration, error) {
 	// todo measure shell spawn time too and deduct it from runs
 	cmd := exec.Command(command[0], command[1:]...)
@@ -125,7 +140,7 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 }
 
 // todo automatically determine the number of runs
-func benchmark(iterations int, command []string, verbose bool, ignoreError bool, mode benchmarkMode) ([]int64, bool) {
+func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 	// actual runs, each entry stored in microseconds
 	var runs []int64
 	wordMap := map[benchmarkMode]string{
@@ -140,25 +155,32 @@ func benchmark(iterations int, command []string, verbose bool, ignoreError bool,
 	}
 
 	// * looping for given iterations
-	if verbose {
-		word, ok := wordMap[mode]
+	if opts.verbose {
+		word, ok := wordMap[opts.mode]
 		if !ok {
 			// used internally, ok to panic
-			panic(fmt.Sprintf("invalid mode passed to benchmark: %v", mode))
+			panic(fmt.Sprintf("invalid mode passed to benchmark: %v", opts.mode))
 		}
-		for i := 1; i <= iterations; i++ {
+		for i := 1; i <= opts.iterations; i++ {
 			internal.Log("purple", fmt.Sprintf("***********\nRunning "+word+" %d\n***********", i))
 
-			dur, e := run(command, verbose, ignoreError)
+			// dont ignore errors in prepare command execution, dont output it either
+			if opts.executePrepareCmd {
+				_, e := run(opts.prepareCmd, false, false)
+				if e != nil {
+					return nil, true
+				}
+			}
+			dur, e := run(opts.command, opts.verbose, opts.ignoreError)
 			if e != nil {
 				return nil, true
 			}
 			runs = append(runs, (dur.Microseconds()))
 		}
 	} else {
-		description, ok := descriptionMap[mode]
+		description, ok := descriptionMap[opts.mode]
 		if !ok {
-			panic(fmt.Sprintf("invalid mode passed to benchmark: %v", mode))
+			panic(fmt.Sprintf("invalid mode passed to benchmark: %v", opts.mode))
 		}
 		pbarOptions := []progressbar.Option{
 			progressbar.OptionClearOnFinish(),
@@ -176,19 +198,32 @@ func benchmark(iterations int, command []string, verbose bool, ignoreError bool,
 			pbarOptions = append(pbarOptions, progressbar.OptionEnableColorCodes(true))
 		}
 		bar := progressbar.NewOptions(
-			iterations, pbarOptions...,
+			opts.iterations, pbarOptions...,
 		)
-		for i := 1; i <= iterations; i++ {
+		for i := 1; i <= opts.iterations; i++ {
+			// run the prepareCmd first
+			// dont ignore errors in prepare command execution, dont output it either
+			if opts.executePrepareCmd {
+				_, e := run(opts.prepareCmd, false, false)
+				if e != nil {
+					return nil, true
+				}
+			}
 			bar.Add(1)
-			dur, e := run(command, verbose, ignoreError)
+			dur, e := run(opts.command, opts.verbose, opts.ignoreError)
 			if e != nil {
 				bar.Finish()
 				return nil, true
 			}
-			if mode == mainMode {
-				bar.Describe(fmt.Sprintf("[magenta]Current estimate:[reset] [green]%s[reset]", dur.String()))
-			}
 			runs = append(runs, (dur.Microseconds()))
+			if opts.mode == mainMode {
+				bar.Describe(
+					fmt.Sprintf("[magenta]Current estimate:[reset] [green]%s[reset]", 
+						internal.DurationFromNumber(
+							internal.CalculateAverage(runs), time.Microsecond).String(),
+					),
+				)
+			}
 		}
 	}
 	return runs, false
@@ -207,8 +242,11 @@ func main() {
 		SetVersion(VERSION).
 		SetDescription("atomic is a simple CLI tool to make benchmarking easy. \nFor more info visit https://github.com/Shravan-1908/atomic.")
 
+	// this value is used in cases of flags default values
+	// because empty default values in commando marks the flag as required
+	const dummyDefault = "~!_none_!~"
+
 	// * root command
-	// todo add prepare command flag
 	commando.
 		Register(nil).
 		SetShortDescription("Benchmark a command for given number of iterations.").
@@ -216,6 +254,7 @@ func main() {
 		AddArgument("command...", "The command to run for benchmarking.", "").
 		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, 10).
 		AddFlag("warmup,w", "The number of warmup runs to perform.", commando.Int, 0).
+		AddFlag("prepare,p", "The command to execute once before every run.", commando.String, dummyDefault).
 		AddFlag("ignore-error,I", "Ignore if the process returns a non-zero return code", commando.Bool, false).
 		AddFlag("shell,s", "Whether to use shell to execute the given command.", commando.Bool, false).
 		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
@@ -225,11 +264,9 @@ func main() {
 			// todo maybe have a custom shell support. !_default_! is when pwsh or bin/sh
 			// * getting args and flag values
 			if strings.TrimSpace(args["command"].Value) == "" {
-				fmt.Println("Error: not enough arguments.")
+				internal.Log("red", "Error: not enough arguments.")
 				return
 			}
-
-			commandString := (args["command"].Value)
 
 			iterations, e := flags["iterations"].GetInt()
 			if e != nil {
@@ -248,27 +285,32 @@ func main() {
 			verbose, e := flags["verbose"].GetBool()
 			if e != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
+				return
 			}
 			NO_COLOR, e = (flags["color"].GetBool())
 			if e != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
+				return
 			}
 			internal.NO_COLOR = !NO_COLOR
 
 			ignoreError, er := flags["ignore-error"].GetBool()
 			if er != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
+				return
 			}
 
 			useShell, er := flags["shell"].GetBool()
 			if er != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
+				return
 			}
 
 			if iterations <= 0 {
 				return
 			}
 
+			commandString := (args["command"].Value)
 			command, err := buildCommand(commandString, useShell)
 			if err != nil {
 				internal.Log("error", "unable to parse the given command: "+commandString)
@@ -276,21 +318,54 @@ func main() {
 				return
 			}
 
+			prepareCmdString, err := flags["prepare"].GetString()
+			if err != nil {
+				internal.Log("error", "unable to parse the given command: "+commandString)
+				internal.Log("error", "error: "+err.Error())
+				return
+			}
+			executePrepareCmd := true
+			if prepareCmdString == dummyDefault {
+				executePrepareCmd = false
+			}
+			var prepareCmd []string
+			prepareCmd, err = buildCommand(prepareCmdString, useShell)
+			if err != nil {
+				internal.Log("error", "unable to parse the given command: "+commandString)
+				internal.Log("error", "error: "+err.Error())
+				return
+			}
+
+			warmupOpts := BenchmarkOptions{
+				command:           command,
+				iterations:        iterations,
+				warmupRuns:        warmupRuns,
+				verbose:           verbose,
+				ignoreError:       ignoreError,
+				prepareCmd:        prepareCmd,
+				executePrepareCmd: executePrepareCmd,
+				mode:              warmupMode,
+			}
+
 			// no need for runs in warmups
-			_, shouldReturn := benchmark(warmupRuns, command, verbose, ignoreError, warmupMode)
+			_, shouldReturn := benchmark(warmupOpts)
 			if shouldReturn {
 				return
 			}
 
+			benchmarkOpts := warmupOpts
+			benchmarkOpts.mode = mainMode
+
 			started := time.Now().Format("02-01-2006 15:04:05")
-			runs, shouldReturn := benchmark(iterations, command, verbose, ignoreError, mainMode)
+			runs, shouldReturn := benchmark(benchmarkOpts)
 			if shouldReturn {
 				return
 			}
 			ended := time.Now().Format("02-01-2006 15:04:05")
 
 			// * intialising the template struct
-			avg, stddev := internal.ComputeAverageAndStandardDeviation(runs)
+			avg := internal.CalculateAverage(runs)
+			stddev := internal.CalculateStandardDeviation(runs, avg)
 			avgDuration := internal.DurationFromNumber(avg, time.Microsecond)
 			stddevDuration := internal.DurationFromNumber(stddev, time.Microsecond)
 			max_ := slices.Max(runs)

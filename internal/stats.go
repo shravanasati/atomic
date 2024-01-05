@@ -13,22 +13,25 @@ type numberLike interface {
 	~int | ~float64 | ~int32 | ~int64 | ~float32
 }
 
-// Computes the average and standard deviation of the given data.
-func ComputeAverageAndStandardDeviation[T numberLike](data []T) (float64, float64) {
-	var deviationSum float64 = 0
-	var avg float64 = 0
-	n := float64(len(data))
+func CalculateAverage[T numberLike](data []T) float64 {
+	var sum float64
 	for _, v := range data {
-		avg += float64(v)
+		sum += float64(v)
 	}
-	avg /= n
+	return sum / float64(len(data))
+}
+
+// Computes the standard deviation of the given data.
+func CalculateStandardDeviation[T numberLike](data []T, avg float64) (float64) {
+	var deviationSum float64 = 0
+	n := float64(len(data))
 	for _, v := range data {
 		deviationSum += math.Pow((float64(v) - avg), 2)
 	}
 	deviationSum /= n
 	deviationSum = math.Sqrt(deviationSum)
 
-	return roundFloat(avg, 2), roundFloat(deviationSum, 2)
+	return roundFloat(deviationSum, 2)
 }
 
 // returns a slice of absolute z-scores of each data point
