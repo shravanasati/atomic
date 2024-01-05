@@ -35,7 +35,6 @@ const (
 type BenchmarkOptions struct {
 	command           []string
 	iterations        int
-	warmupRuns        int
 	verbose           bool
 	ignoreError       bool
 	executePrepareCmd bool
@@ -113,7 +112,7 @@ type failedProcessError struct {
 }
 
 func (fpe *failedProcessError) Error() string {
-	return fmt.Sprintf("The command `%s` failed in the process of %s!\n%s", strings.Join(fpe.command, " "), fpe.mode, fpe.err.Error())
+	return fmt.Sprintf("The command `%s` failed in the process of %s!\nerror: %s", strings.Join(fpe.command, " "), fpe.mode, fpe.err.Error())
 }
 
 // runs the built command using os/exec and returns the duration the command lasted
@@ -350,8 +349,7 @@ func main() {
 
 			warmupOpts := BenchmarkOptions{
 				command:           command,
-				iterations:        iterations,
-				warmupRuns:        warmupRuns,
+				iterations:        warmupRuns,
 				verbose:           verbose,
 				ignoreError:       ignoreError,
 				prepareCmd:        prepareCmd,
@@ -366,6 +364,7 @@ func main() {
 			}
 
 			benchmarkOpts := warmupOpts
+			benchmarkOpts.iterations = iterations
 			benchmarkOpts.mode = mainMode
 
 			started := time.Now().Format("02-01-2006 15:04:05")
