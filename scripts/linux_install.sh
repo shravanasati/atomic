@@ -1,16 +1,16 @@
 #!/bin/bash
 
-echo "Downloading bench..."
-curl -L "https://github.com/Shravan-1908/bench/releases/latest/download/bench-linux-amd64" -o bench
+echo "Downloading atomic..."
+curl -L "https://github.com/Shravan-1908/atomic/releases/latest/download/atomic-linux-amd64" -o atomic
 
-echo "Adding bench into PATH..."
+echo "Adding atomic into PATH..."
 
-mkdir -p ~/.bench
+mkdir -p ~/.atomic
 
-chmod u+x ./bench
+chmod u+x ./atomic
 
-mv ./bench ~/.bench
-echo "export PATH=$PATH:~/.bench" >> ~/.bashrc
+mv ./atomic ~/.atomic
+echo "export PATH=$PATH:~/.atomic" >> ~/.bashrc
 
-echo "bench installation is completed!"
-echo "You need to restart the shell to use bench."
+echo "atomic installation is completed!"
+echo "You need to restart the shell to use atomic."

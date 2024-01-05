@@ -1,11 +1,11 @@
-# bench
+# atomic
 
-[![Continuous integration](https://github.com/Shravan-1908/bench/actions/workflows/integrate.yml/badge.svg)](https://github.com/Shravan-1908/bench/actions/workflows/integrate.yml)
+[![Continuous integration](https://github.com/Shravan-1908/atomic/actions/workflows/integrate.yml/badge.svg)](https://github.com/Shravan-1908/atomic/actions/workflows/integrate.yml)
 
 ![bench_demo](assets/demo.png)
 
 
-*bench* is a simple CLI tool for making benchmarking easy.
+*atomic* is a simple CLI tool for making benchmarking easy.
 
 
 <br>
@@ -28,7 +28,7 @@
 Execute the following command in bash:
 
 ```bash
-curl https://raw.githubusercontent.com/Shravan-1908/bench/master/scripts/linux_install.sh > bench_install.sh
+curl https://raw.githubusercontent.com/Shravan-1908/atomic/master/scripts/linux_install.sh > bench_install.sh
 
 chmod +x ./bench_install.sh
 
@@ -41,7 +41,7 @@ bash ./bench_install.sh
 Execute the following command in bash:
 
 ```bash
-curl https://raw.githubusercontent.com/Shravan-1908/bench/master/scripts/macos_install.sh > bench_install.sh
+curl https://raw.githubusercontent.com/Shravan-1908/atomic/master/scripts/macos_install.sh > bench_install.sh
 
 chmod +x ./bench_install.sh
 
@@ -52,12 +52,12 @@ bash ./bench_install.sh
 
 Open Powershell **as Admin** and execute the following command:
 ```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; (Invoke-WebRequest -Uri https://raw.githubusercontent.com/Shravan-1908/bench/master/scripts/windows_install.ps1 -UseBasicParsing).Content | powershell -
+Set-ExecutionPolicy Bypass -Scope Process -Force; (Invoke-WebRequest -Uri https://raw.githubusercontent.com/Shravan-1908/atomic/master/scripts/windows_install.ps1 -UseBasicParsing).Content | powershell -
 ```
 
-To verify the installation of *bench*, open a new shell and execute `bench -v`. You should see output like this:
+To verify the installation of *atomic*, open a new shell and execute `atomic -v`. You should see output like this:
 ```
-bench 0.1.1
+atomic 0.1.1
 
 Version: 0.1.1
 ```
@@ -67,13 +67,13 @@ If the output isn't something like this, you need to repeat the above steps care
 <br>
 
 ## 💡 Usage
-This section shows how you can use *bench*.
+This section shows how you can use *atomic*.
 
 
-You can benchmark anything with bench, python programs, executables, shell commands or anything. To benchmark with bench, simply execute:
+You can benchmark anything with atomic, python programs, executables, shell commands or anything. To benchmark with atomic, simply execute:
 
 ```
-bench <command> [iterations]
+atomic <command> [iterations]
 ```
 
 The `command` argument is the command to execute for benchmarking, like `python3 file` or `./executable`.
@@ -82,44 +82,40 @@ The `iterations` argument defaults to 10, if not provided.
 
 Example:
 ```
-bench "node speedtest.js" 20
+atomic "node speedtest.js" 20
 ```
 
 You can export the benchmark summary in three different formats - markdown, text and json.
 
-To export the results, use the `--export` flag. A file named `bench-summary.format` will be created.
+To export the results, use the `--export` flag. A file named `atomic-summary.format` will be created.
 
 Example:
 ```
-bench "node speedtest.js" 20 --export json
+atomic "node speedtest.js" 20 --export json
 ```
-
-### up
-
-`$ bench up`
-
-The `up` command can be used to update *bench* to the latest version right away, without any need to execute those shell commands again. 
-
 
 
 ### version
-`$ bench version`
+`$ atomic version`
 >
-The version command shows the version of *bench* installed.
+The version command shows the version of *atomic* installed.
 
 ### help
-`$ bench help`
+`$ atomic help`
 
-Renders assistance for *bench* on a terminal, briefly showing its usage.
+Renders assistance for *atomic* on a terminal, briefly showing its usage.
 
 <br
 
+## Acknowledgement
+
+This tool is heavily inspired by [*hyperfine*](https://github.com/sharkdp/hyperfine). I learnt a lot of stuff looking at the code of this project and tried matching it as close as possible.
 
 ## 🔖 Versioning
-*bench* releases follow semantic versioning, every release is in the *x.y.z* form, where:
-- *x* is the MAJOR version and is incremented when a backwards incompatible change to bench is made.
-- *y* is the MINOR version and is incremented when a backwards compatible change to bench is made, like changing dependencies or adding a new function, method, struct field, or type.
-- *z* is the PATCH version and is incremented after making minor changes that don't affect bench's public API or dependencies, like fixing a bug.
+*atomic* releases follow semantic versioning, every release is in the *x.y.z* form, where:
+- *x* is the MAJOR version and is incremented when a backwards incompatible change to atomic is made.
+- *y* is the MINOR version and is incremented when a backwards compatible change to atomic is made, like changing dependencies or adding a new function, method, struct field, or type.
+- *z* is the PATCH version and is incremented after making minor changes that don't affect atomic's public API or dependencies, like fixing a bug.
 
 <br>
 

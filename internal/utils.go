@@ -20,7 +20,7 @@ func format(text string, params map[string]string) string {
 }
 
 // MapFunc returns a slice of all elements in the given slice mapped by the given function.
-func MapFunc[T any, S any](function func (T) S, slice []T) ([]S) {
+func MapFunc[T any, S any](function func(T) S, slice []T) []S {
 	mappedSlice := make([]S, len(slice))
 	for i, v := range slice {
 		mappedSlice[i] = function(v)
@@ -53,9 +53,8 @@ func writeToFile(text, filename string) (err error) {
 
 func roundFloat(num float64, digits int) float64 {
 	tenMultiplier := math.Pow10(digits)
-	return math.Round(num * tenMultiplier) / tenMultiplier
+	return math.Round(num*tenMultiplier) / tenMultiplier
 }
-
 
 func checkPathExists(fp string) bool {
 	_, e := os.Stat(fp)
@@ -68,8 +67,8 @@ func getBenchDir() string {
 		panic(e)
 	}
 
-	// * determining bench's directory
-	dir := filepath.Join(usr.HomeDir, ".bench")
+	// * determining atomic's directory
+	dir := filepath.Join(usr.HomeDir, ".atomic")
 
 	if !checkPathExists(dir) {
 		os.Mkdir(dir, os.ModePerm)
@@ -95,17 +94,17 @@ func readFile(file string) string {
 	return text
 }
 
-func DurationFromNumber[T numberLike](number T, unit time.Duration) (time.Duration) {
+func DurationFromNumber[T numberLike](number T, unit time.Duration) time.Duration {
 	unitToSuffixMap := map[time.Duration]string{
-		time.Nanosecond: "ns",
+		time.Nanosecond:  "ns",
 		time.Microsecond: "us",
 		time.Millisecond: "ms",
-		time.Second: "s",
-		time.Minute: "m",
-		time.Hour: "h",
+		time.Second:      "s",
+		time.Minute:      "m",
+		time.Hour:        "h",
 	}
 	suffix, ok := unitToSuffixMap[unit]
-	if ! ok {
+	if !ok {
 		// this function is only used internally, panic if unknown time unit is passed
 		panic("unknown time unit in DurationFromNumber: " + unit.String())
 	}

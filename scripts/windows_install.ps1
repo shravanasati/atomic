@@ -1,18 +1,18 @@
-Write-Host "Downloading bench..."
+Write-Host "Downloading atomic..."
 
-$url = "https://github.com/Shravan-1908/bench/releases/latest/download/bench-windows-amd64.exe"
+$url = "https://github.com/Shravan-1908/atomic/releases/latest/download/atomic-windows-amd64.exe"
 
-$dir = $env:USERPROFILE + "\.bench"
-$filepath = $env:USERPROFILE + "\.bench\bench.exe"
+$dir = $env:USERPROFILE + "\.atomic"
+$filepath = $env:USERPROFILE + "\.atomic\atomic.exe"
 
 [System.IO.Directory]::CreateDirectory($dir)
 (Invoke-WebRequest -Uri $url -OutFile $filepath)
 
-Write-Host "Adding bench to PATH..."
+Write-Host "Adding atomic to PATH..."
 [Environment]::SetEnvironmentVariable(
     "Path",
     [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::Machine) + ";"+$dir,
     [EnvironmentVariableTarget]::Machine)
 
-Write-Host 'bench installation is successfull!'
-Write-Host "You need to restart your shell to use bench."
+Write-Host 'atomic installation is successfull!'
+Write-Host "You need to restart your shell to use atomic."

@@ -1,4 +1,4 @@
-module github.com/Shravan-1908/bench
+module github.com/Shravan-1908/atomic
 
 go 1.21
 

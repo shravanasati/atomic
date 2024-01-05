@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Shravan-1908/bench/internal"
+	"github.com/Shravan-1908/atomic/internal"
 	"github.com/google/shlex"
 	"github.com/schollz/progressbar/v3"
 	"github.com/thatisuday/commando"
@@ -18,7 +18,7 @@ import (
 
 const (
 	// NAME is the executable name.
-	NAME = "bench"
+	NAME = "atomic"
 	// VERSION is the executable version.
 	VERSION = "v0.4.0"
 )
@@ -98,12 +98,12 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 	if e != nil {
 		panic(e)
 	}
-	
+
 	if verbose {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
-	
+
 	if e := cmd.Start(); e != nil {
 		// todo refactor this code to just return errors instead of logging
 		internal.Log("red", fmt.Sprintf("The command `%s` couldn't be called!", strings.Join(command, " ")))
@@ -123,6 +123,7 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 
 	return duration, nil
 }
+
 // todo automatically determine the number of runs
 func benchmark(iterations int, command []string, verbose bool, ignoreError bool, mode benchmarkMode) ([]int64, bool) {
 	// actual runs, each entry stored in microseconds
@@ -133,9 +134,9 @@ func benchmark(iterations int, command []string, verbose bool, ignoreError bool,
 		mainMode:   "iteration",
 	}
 	descriptionMap := map[benchmarkMode]string{
-		shellMode: "Measuring shell spawn time",
+		shellMode:  "Measuring shell spawn time",
 		warmupMode: "Performing warmup runs",
-		mainMode: "Performing benchmark runs",
+		mainMode:   "Performing benchmark runs",
 	}
 
 	// * looping for given iterations
@@ -204,9 +205,10 @@ func main() {
 	commando.
 		SetExecutableName(NAME).
 		SetVersion(VERSION).
-		SetDescription("bench is a simple CLI tool to make benchmarking easy. \nFor more info visit https://github.com/Shravan-1908/bench.")
+		SetDescription("atomic is a simple CLI tool to make benchmarking easy. \nFor more info visit https://github.com/Shravan-1908/atomic.")
 
 	// * root command
+	// todo add prepare command flag
 	commando.
 		Register(nil).
 		SetShortDescription("Benchmark a command for given number of iterations.").
@@ -220,7 +222,7 @@ func main() {
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
-
+			// todo maybe have a custom shell support. !_default_! is when pwsh or bin/sh
 			// * getting args and flag values
 			if strings.TrimSpace(args["command"].Value) == "" {
 				fmt.Println("Error: not enough arguments.")
@@ -269,8 +271,8 @@ func main() {
 
 			command, err := buildCommand(commandString, useShell)
 			if err != nil {
-				internal.Log("error", "unable to parse the given command: " + commandString)
-				internal.Log("error", "error: " + err.Error())
+				internal.Log("error", "unable to parse the given command: "+commandString)
+				internal.Log("error", "error: "+err.Error())
 				return
 			}
 

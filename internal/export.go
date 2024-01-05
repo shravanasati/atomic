@@ -76,7 +76,7 @@ func textify(r *Result) {
 		panic(err)
 	}
 
-	f, ferr := os.Create("bench-summary.txt")
+	f, ferr := os.Create("atomic-summary.txt")
 	if ferr != nil {
 		Log("red", "Failed to create the file.")
 	}
@@ -84,7 +84,7 @@ func textify(r *Result) {
 	if terr := tmpl.Execute(f, r); terr != nil {
 		Log("red", "Failed to write to the file.")
 	} else {
-		absPath, err := filepath.Abs("bench-summary.txt")
+		absPath, err := filepath.Abs("atomic-summary.txt")
 		if err != nil {
 			Log("red", "unable to get the absolute path for text file: "+err.Error())
 		} else {
@@ -96,7 +96,7 @@ func textify(r *Result) {
 
 func markdownify(r *Result) {
 	text := `
-# bench-summary
+# atomic-summary
 
 | Fields             | Values          					       |
 | -----------        | -----------     						   |
@@ -112,7 +112,7 @@ func markdownify(r *Result) {
 		panic(err)
 	}
 
-	f, ferr := os.Create("bench-summary.md")
+	f, ferr := os.Create("atomic-summary.md")
 	if ferr != nil {
 		Log("red", "Failed to create the file.")
 	}
@@ -120,7 +120,7 @@ func markdownify(r *Result) {
 	if terr := tmpl.Execute(f, r); terr != nil {
 		Log("red", "Failed to write to the file.")
 	} else {
-		absPath, err := filepath.Abs("bench-summary.md")
+		absPath, err := filepath.Abs("atomic-summary.md")
 		if err != nil {
 			Log("red", "unable to get the absolute path for markdown file: "+err.Error())
 		} else {
@@ -146,7 +146,7 @@ Started,Ended,Executed Command,Total iterations,Average time taken,Range
 		panic(err)
 	}
 
-	f, ferr := os.Create("bench-summary.csv")
+	f, ferr := os.Create("atomic-summary.csv")
 	if ferr != nil {
 		Log("red", "Failed to create the file.")
 	}
@@ -154,7 +154,7 @@ Started,Ended,Executed Command,Total iterations,Average time taken,Range
 	if terr := tmpl.Execute(f, r); terr != nil {
 		Log("red", "Failed to write to the file.")
 	} else {
-		absPath, err := filepath.Abs("bench-summary.csv")
+		absPath, err := filepath.Abs("atomic-summary.csv")
 		if err != nil {
 			Log("red", "unable to get the absolute path for csv file: "+err.Error())
 		} else {
@@ -175,16 +175,16 @@ func (result *Result) Export(exportFormats string) {
 				Log("red", "Failed to export the results to json.")
 				return
 			}
-			e = writeToFile(string(jsonText), "bench-summary.json")
+			e = writeToFile(string(jsonText), "atomic-summary.json")
 			if e == nil {
-				absPath, err := filepath.Abs("bench-summary.json")
+				absPath, err := filepath.Abs("atomic-summary.json")
 				if err != nil {
 					Log("red", "unable to get the absolute path for json file: "+err.Error())
 				} else {
 					Log("green", "Successfully wrote benchmark summary to `"+absPath+"`.")
 				}
 			} else {
-				Log("red", "Unable to write to file ./bench-summary.json: "+e.Error())
+				Log("red", "Unable to write to file ./atomic-summary.json: "+e.Error())
 			}
 
 		} else if exportFormat == "csv" {

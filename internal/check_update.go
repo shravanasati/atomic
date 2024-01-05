@@ -74,7 +74,7 @@ type releaseInfo struct {
 }
 
 func (ri releaseInfo) String() string {
-	return fmt.Sprintf("\nnote: new `%s` of bench is now available at `%s` \n\nfull release article: \n%s \n%s\n", ri.TagName, ri.HTMLURL, ri.Name, ri.Body)
+	return fmt.Sprintf("\nnote: new `%s` of atomic is now available at `%s` \n\nfull release article: \n%s \n%s\n", ri.TagName, ri.HTMLURL, ri.Name, ri.Body)
 }
 
 func CheckForUpdates(currentVersion string, updateCh *chan string) {
@@ -85,7 +85,7 @@ func CheckForUpdates(currentVersion string, updateCh *chan string) {
 		return
 	}
 
-	url := "https://api.github.com/repos/Shravan-1908/bench/releases/latest"
+	url := "https://api.github.com/repos/Shravan-1908/atomic/releases/latest"
 	releaseInfo := releaseInfo{}
 	resp, err := http.Get(url)
 	if err != nil {
