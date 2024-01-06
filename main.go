@@ -97,8 +97,8 @@ func getShell() (string, error) {
 
 // builds the given command as per the given params.
 // if useShell is true, adds a shell in front of the command.
-// returns the built command and a boolean value indicating whether
-// the application should quit in case it is unable to build a command.
+// the shell is determined by the shellPath.
+// returns the built command and an error.
 func buildCommand(command string, useShell bool, shellPath string) ([]string, error) {
 	var builtCommand []string
 	var err error
@@ -269,7 +269,7 @@ func main() {
 	if err != nil {
 		defaultShellValue = dummyDefault
 	}
-		
+
 	// * root command
 	// todo add a timeout flag
 	commando.
@@ -297,6 +297,10 @@ func main() {
 			if e != nil {
 				internal.Log("red", "The number of iterations must be an integer!")
 				internal.Log("white", e.Error())
+				return
+			}
+
+			if iterations <= 0 {
 				return
 			}
 
@@ -336,9 +340,11 @@ func main() {
 				return
 			}
 
-			if iterations <= 0 {
+			if shellPath == dummyDefault && useShell {
+				internal.Log("error", "unable to determine the shell to use! supply the name of the shell (if present in $PATH) or the path to the shell using the --shell-path flag.")
 				return
 			}
+
 
 			commandString := (args["command"].Value)
 			command, err := buildCommand(commandString, useShell, shellPath)
