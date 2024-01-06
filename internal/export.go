@@ -12,8 +12,6 @@ import (
 // Other numerical quantities except iterations are represented as strings because they are 
 // durations, and time.Duration offers a .String() method.
 type Result struct {
-	Started           string
-	Ended             string
 	Command           string
 	Iterations        int
 	Average           string
@@ -28,8 +26,6 @@ var summaryNoColor = `
 Benchmarking Summary
 --------------------
 
-Started:            {{ .Started }} 
-Ended:              {{ .Ended }} 
 Executed Command:   {{ .Command }} 
 Total iterations:   {{ .Iterations }} 
 Average time taken: {{ .Average }} ± {{ .StandardDeviation }}
@@ -40,8 +36,6 @@ var summaryColor = `
 ${blue}Benchmarking Summary ${reset}
 ${blue}-------------------- ${reset}
 
-${yellow}Started:            ${green}{{ .Started }} ${reset}
-${yellow}Ended:              ${green}{{ .Ended }} ${reset}
 ${yellow}Executed Command:   ${green}{{ .Command }} ${reset}
 ${yellow}Total iterations:   ${green}{{ .Iterations }} ${reset}
 ${yellow}Average time taken: ${green}{{ .Average }} ± {{ .StandardDeviation }} ${reset}
@@ -102,8 +96,6 @@ func markdownify(r *Result) {
 
 | Fields             | Values          					       |
 | -----------        | -----------     						   |
-| Started            | {{.Started}}    						   |
-| Ended              | {{.Ended}}      						   |
 | Executed Command   | {{.Command}}   						   |
 | Total iterations   | {{.Iterations}} 						   |
 | Average time taken | {{.Average}} ± {{ .StandardDeviation }} |
@@ -140,8 +132,8 @@ func jsonify(r *Result) ([]byte, error) {
 // csvify converts the Result struct to CSV.
 func csvify(r *Result) {
 	text := `
-Started,Ended,Executed Command,Total iterations,Average time taken,Range
-{{.Started}}, {{.Ended}}, {{.Command}}, {{.Iterations}}, {{.Average}} ± {{ .StandardDeviation }}, {{.Min}} ... {{.Max}}
+Executed Command,Total iterations,Average time taken,Range
+{{.Command}}, {{.Iterations}}, {{.Average}} ± {{ .StandardDeviation }}, {{.Min}} ... {{.Max}}
 `
 	tmpl, err := template.New("summary").Parse(text)
 	if err != nil {

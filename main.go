@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/Shravan-1908/atomic/internal"
+	"github.com/Shravan-1908/commando"
 	"github.com/google/shlex"
 	"github.com/schollz/progressbar/v3"
-	"github.com/thatisuday/commando"
 )
 
 const (
@@ -63,7 +63,7 @@ func _testPowershell() bool {
 // because empty default values in commando marks the flag as required
 const dummyDefault = "~!_default_!~"
 
-// returns the shell path
+// returns the default shell path (pwsh/cmd on windows, /bin/sh on unix based systems) and an error.
 func getShell() (string, error) {
 	if WINDOWS {
 		// windows
@@ -106,7 +106,7 @@ func buildCommand(command string, useShell bool, shellPath string) ([]string, er
 		// the flag that enables execution of command from a string
 		// eg. -Command or -c on pwsh, /c on cmd.exe, -c on any other shell
 		var commandSwitch string
-		if strings.Contains(shellPath, "cmd.exe") || strings.Contains(shellPath, "cmd"){
+		if strings.Contains(shellPath, "cmd.exe") || strings.Contains(shellPath, "cmd") {
 			commandSwitch = "/c"
 		} else {
 			commandSwitch = "-c"
@@ -277,7 +277,7 @@ func main() {
 		Register(nil).
 		SetShortDescription("Benchmark a command for given number of iterations.").
 		SetDescription("Benchmark a command for given number of iterations.").
-		AddArgument("command...", "The command to run for benchmarking.", "").
+		AddArgument("commands...", "The command to run for benchmarking.", "").
 		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, 10).
 		AddFlag("warmup,w", "The number of warmup runs to perform.", commando.Int, 0).
 		AddFlag("prepare,p", "The command to execute once before every run.", commando.String, dummyDefault).
@@ -289,159 +289,155 @@ func main() {
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 			// * getting args and flag values
-			if strings.TrimSpace(args["command"].Value) == "" {
+			if strings.TrimSpace(args["commands"].Value) == "" {
 				internal.Log("red", "Error: not enough arguments.")
 				return
 			}
-
-			iterations, e := flags["iterations"].GetInt()
-			if e != nil {
-				internal.Log("red", "The number of iterations must be an integer!")
-				internal.Log("white", e.Error())
-				return
-			}
-
-			if iterations <= 0 {
-				return
-			}
-
-			warmupRuns, e := flags["warmup"].GetInt()
-			if e != nil {
-				internal.Log("red", "The number of iterations must be an integer!")
-				internal.Log("white", e.Error())
-				return
-			}
-
-			verbose, e := flags["verbose"].GetBool()
-			if e != nil {
-				internal.Log("red", "Application error: cannot parse flag values.")
-				return
-			}
-			NO_COLOR, e = (flags["color"].GetBool())
-			if e != nil {
-				internal.Log("red", "Application error: cannot parse flag values.")
-				return
-			}
-			internal.NO_COLOR = !NO_COLOR
-
-			ignoreError, er := flags["ignore-error"].GetBool()
-			if er != nil {
-				internal.Log("red", "Application error: cannot parse flag values.")
-				return
-			}
-
-			useShell, er := flags["shell"].GetBool()
-			if er != nil {
-				internal.Log("red", "Application error: cannot parse flag values.")
-				return
-			}
-			shellPath, er := flags["shell-path"].GetString()
-			if er != nil {
-				internal.Log("red", "Application error: cannot parse flag values.")
-				return
-			}
-
-			if shellPath == dummyDefault && useShell {
-				internal.Log("error", "unable to determine the shell to use! supply the name of the shell (if present in $PATH) or the path to the shell using the --shell-path flag.")
-				return
-			}
-
-
-			commandString := (args["command"].Value)
-			command, err := buildCommand(commandString, useShell, shellPath)
-			if err != nil {
-				internal.Log("error", "unable to parse the given command: "+commandString)
-				internal.Log("error", "error: "+err.Error())
-				return
-			}
-
-			prepareCmdString, err := flags["prepare"].GetString()
-			if err != nil {
-				internal.Log("error", "unable to parse the given command: "+commandString)
-				internal.Log("error", "error: "+err.Error())
-				return
-			}
-			executePrepareCmd := prepareCmdString != dummyDefault
-			var prepareCmd []string
-			prepareCmd, err = buildCommand(prepareCmdString, useShell, shellPath)
-			if err != nil {
-				internal.Log("error", "unable to parse the given command: "+commandString)
-				internal.Log("error", "error: "+err.Error())
-				return
-			}
-
-			warmupOpts := BenchmarkOptions{
-				command:           command,
-				iterations:        warmupRuns,
-				verbose:           verbose,
-				ignoreError:       ignoreError,
-				prepareCmd:        prepareCmd,
-				executePrepareCmd: executePrepareCmd,
-				mode:              warmupMode,
-			}
-
-			// no need for runs in warmups
-			_, shouldReturn := benchmark(warmupOpts)
-			if shouldReturn {
-				return
-			}
-
-			benchmarkOpts := warmupOpts
-			benchmarkOpts.iterations = iterations
-			benchmarkOpts.mode = mainMode
-
-			started := time.Now().Format("02-01-2006 15:04:05")
-			runs, shouldReturn := benchmark(benchmarkOpts)
-			if shouldReturn {
-				return
-			}
-			ended := time.Now().Format("02-01-2006 15:04:05")
-
-			// * intialising the template struct
-			avg := internal.CalculateAverage(runs)
-			stddev := internal.CalculateStandardDeviation(runs, avg)
-			avgDuration := internal.DurationFromNumber(avg, time.Microsecond)
-			stddevDuration := internal.DurationFromNumber(stddev, time.Microsecond)
-			max_ := slices.Max(runs)
-			min_ := slices.Min(runs)
-			maxDuration := internal.DurationFromNumber(max_, time.Microsecond)
-			minDuration := internal.DurationFromNumber(min_, time.Microsecond)
-			result := internal.Result{
-				Started:           started,
-				Ended:             ended,
-				Command:           strings.Join(command, " "),
-				Iterations:        iterations,
-				Average:           avgDuration.String(),
-				StandardDeviation: stddevDuration.String(),
-				Max:               maxDuration.String(),
-				Min:               minDuration.String(),
-			}
-
-			result.Consolify()
-
-			// * getting export values
-			exportFormats, ierr := flags["export"].GetString()
-			if ierr != nil {
-				internal.Log("red", "Application error: cannot parse flag values.")
-				return
-			}
-			result.Export(exportFormats)
-
-			outliersDetected := internal.TestOutliers(runs)
-			if outliersDetected {
-				internal.Log("yellow", "\nWarning: Statistical outliers were detected. Consider re-running this benchmark on a quiet system, devoid of any interferences from other programs.")
-				if warmupRuns == 0 {
-					internal.Log("yellow", "It might help to use the --warmup flag.")
-				} else {
-					internal.Log("yellow", "Since you're already using the --warmup flag, you can consider increasing the warmup count.")
+			// todo add logs like benchmark#1: command1...
+			for _, commandString := range strings.Split(args["commands"].Value, commando.VariadicSeparator) {
+				iterations, e := flags["iterations"].GetInt()
+				if e != nil {
+					internal.Log("red", "The number of iterations must be an integer!")
+					internal.Log("white", e.Error())
+					return
 				}
-			}
 
-			// 5000us = 5ms, avg is in microseconds
-			if avg < 5000 {
-				internal.Log("yellow", "\nWarning: The benchmark took less than 5ms on average, the results might be inaccurate.")
-			}
+				if iterations <= 0 {
+					return
+				}
 
+				warmupRuns, e := flags["warmup"].GetInt()
+				if e != nil {
+					internal.Log("red", "The number of iterations must be an integer!")
+					internal.Log("white", e.Error())
+					return
+				}
+
+				verbose, e := flags["verbose"].GetBool()
+				if e != nil {
+					internal.Log("red", "Application error: cannot parse flag values.")
+					return
+				}
+				NO_COLOR, e = (flags["color"].GetBool())
+				if e != nil {
+					internal.Log("red", "Application error: cannot parse flag values.")
+					return
+				}
+				internal.NO_COLOR = !NO_COLOR
+
+				ignoreError, er := flags["ignore-error"].GetBool()
+				if er != nil {
+					internal.Log("red", "Application error: cannot parse flag values.")
+					return
+				}
+
+				useShell, er := flags["shell"].GetBool()
+				if er != nil {
+					internal.Log("red", "Application error: cannot parse flag values.")
+					return
+				}
+				shellPath, er := flags["shell-path"].GetString()
+				if er != nil {
+					internal.Log("red", "Application error: cannot parse flag values.")
+					return
+				}
+
+				if shellPath == dummyDefault && useShell {
+					internal.Log("error", "unable to determine the shell to use! supply the name of the shell (if present in $PATH) or the path to the shell using the --shell-path flag.")
+					return
+				}
+
+				command, err := buildCommand(commandString, useShell, shellPath)
+				if err != nil {
+					internal.Log("error", "unable to parse the given command: "+commandString)
+					internal.Log("error", "error: "+err.Error())
+					return
+				}
+
+				prepareCmdString, err := flags["prepare"].GetString()
+				if err != nil {
+					internal.Log("error", "unable to parse the given command: "+commandString)
+					internal.Log("error", "error: "+err.Error())
+					return
+				}
+				executePrepareCmd := prepareCmdString != dummyDefault
+				var prepareCmd []string
+				prepareCmd, err = buildCommand(prepareCmdString, useShell, shellPath)
+				if err != nil {
+					internal.Log("error", "unable to parse the given command: "+commandString)
+					internal.Log("error", "error: "+err.Error())
+					return
+				}
+
+				warmupOpts := BenchmarkOptions{
+					command:           command,
+					iterations:        warmupRuns,
+					verbose:           verbose,
+					ignoreError:       ignoreError,
+					prepareCmd:        prepareCmd,
+					executePrepareCmd: executePrepareCmd,
+					mode:              warmupMode,
+				}
+
+				// no need for runs in warmups
+				_, shouldReturn := benchmark(warmupOpts)
+				if shouldReturn {
+					return
+				}
+
+				benchmarkOpts := warmupOpts
+				benchmarkOpts.iterations = iterations
+				benchmarkOpts.mode = mainMode
+
+				runs, shouldReturn := benchmark(benchmarkOpts)
+				if shouldReturn {
+					return
+				}
+
+				// * intialising the template struct
+				avg := internal.CalculateAverage(runs)
+				stddev := internal.CalculateStandardDeviation(runs, avg)
+				avgDuration := internal.DurationFromNumber(avg, time.Microsecond)
+				stddevDuration := internal.DurationFromNumber(stddev, time.Microsecond)
+				max_ := slices.Max(runs)
+				min_ := slices.Min(runs)
+				maxDuration := internal.DurationFromNumber(max_, time.Microsecond)
+				minDuration := internal.DurationFromNumber(min_, time.Microsecond)
+				result := internal.Result{
+					Command:           strings.Join(command, " "),
+					Iterations:        iterations,
+					Average:           avgDuration.String(),
+					StandardDeviation: stddevDuration.String(),
+					Max:               maxDuration.String(),
+					Min:               minDuration.String(),
+				}
+
+				result.Consolify()
+
+				// * getting export values
+				exportFormats, ierr := flags["export"].GetString()
+				if ierr != nil {
+					internal.Log("red", "Application error: cannot parse flag values.")
+					return
+				}
+				result.Export(exportFormats)
+
+				outliersDetected := internal.TestOutliers(runs)
+				if outliersDetected {
+					internal.Log("yellow", "\nWarning: Statistical outliers were detected. Consider re-running this benchmark on a quiet system, devoid of any interferences from other programs.")
+					if warmupRuns == 0 {
+						internal.Log("yellow", "It might help to use the --warmup flag.")
+					} else {
+						internal.Log("yellow", "Since you're already using the --warmup flag, you can consider increasing the warmup count.")
+					}
+				}
+
+				// 5000us = 5ms, avg is in microseconds
+				if min_ < 5000 {
+					internal.Log("yellow", "\nWarning: The command took less than 5ms to execute, the results might be inaccurate.")
+				}
+
+			}
 		})
 
 	commando.Parse(nil)
