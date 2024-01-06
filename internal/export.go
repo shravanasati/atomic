@@ -9,6 +9,8 @@ import (
 )
 
 // Result struct which is shown at the end as benchmarking summary and is written to a file.
+// Other numerical quantities except iterations are represented as strings because they are 
+// durations, and time.Duration offers a .String() method.
 type Result struct {
 	Started           string
 	Ended             string

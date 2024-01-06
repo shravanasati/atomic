@@ -59,46 +59,59 @@ func _testPowershell() bool {
 	return err == nil
 }
 
-// func getShell()
+// this value is used in cases of flags default values
+// because empty default values in commando marks the flag as required
+const dummyDefault = "~!_default_!~"
+
+// returns the shell path
+func getShell() (string, error) {
+	if WINDOWS {
+		// windows
+		// first test if powershell is present and use it if present
+		if _testPowershell() {
+			return "powershell", nil
+		} else {
+			// fall back to cmd.exe if pwsh absent
+
+			// lookup the comspec env variable -> it contains the path to cmd.exe
+			comspec, ok := os.LookupEnv("ComSpec")
+			if ok {
+				return comspec, nil
+			} else {
+				// otherwise find cmd.exe in $SystemRoot/System32
+				systemRoot, ok := os.LookupEnv("SystemRoot")
+				if !ok {
+					return "", fmt.Errorf("buildCommand with useShell=true on windows: neither ComSpec nor SystemRoot is set")
+				}
+				comspec = filepath.Join(systemRoot, "System32", "cmd.exe")
+				return comspec, nil
+			}
+		}
+	} else {
+		// posix
+		return "/bin/sh", nil
+	}
+}
+
+// todo write tests
 
 // builds the given command as per the given params.
 // if useShell is true, adds a shell in front of the command.
 // returns the built command and a boolean value indicating whether
 // the application should quit in case it is unable to build a command.
-func buildCommand(command string, useShell bool) ([]string, error) {
+func buildCommand(command string, useShell bool, shellPath string) ([]string, error) {
 	var builtCommand []string
 	var err error
 	if useShell {
-		if WINDOWS {
-			// windows
-			// first test if powershell is present and use it if present
-			if _testPowershell() {
-				command = fmt.Sprintf("powershell -Command \"%s\"", command)
-				builtCommand, err = shlex.Split(command)
-			} else {
-				// fall back to cmd.exe if pwsh absent
-
-				// lookup the comspec env variable -> it contains the path to cmd.exe
-				comspec, ok := os.LookupEnv("ComSpec")
-				if ok {
-					command = fmt.Sprintf("%s /c \"%s\"", comspec, command)
-					builtCommand, err = shlex.Split(command)
-				} else {
-					// otherwise find cmd.exe in $SystemRoot/System32
-					systemRoot, ok := os.LookupEnv("SystemRoot")
-					if !ok {
-						return builtCommand, fmt.Errorf("buildCommand with useShell=true on windows: neither ComSpec nor SystemRoot is set")
-					}
-					comspec = filepath.Join(systemRoot, "System32", "cmd.exe")
-					command = fmt.Sprintf("%s /c \"%s\"", comspec, command)
-					builtCommand, err = shlex.Split(command)
-				}
-			}
+		// the flag that enables execution of command from a string
+		// eg. -Command or -c on pwsh, /c on cmd.exe, -c on any other shell
+		var commandSwitch string
+		if strings.Contains(shellPath, "cmd.exe") || strings.Contains(shellPath, "cmd"){
+			commandSwitch = "/c"
 		} else {
-			// posix
-			command = fmt.Sprintf("/bin/sh -c \"%s\"", command)
-			builtCommand, err = shlex.Split(command)
+			commandSwitch = "-c"
 		}
+		builtCommand, err = shlex.Split(fmt.Sprintf("%s %s \"%s\"", shellPath, commandSwitch, command))
 	} else {
 		builtCommand, err = shlex.Split(command)
 	}
@@ -252,10 +265,11 @@ func main() {
 		SetVersion(VERSION).
 		SetDescription("atomic is a simple CLI tool to make benchmarking easy. \nFor more info visit https://github.com/Shravan-1908/atomic.")
 
-	// this value is used in cases of flags default values
-	// because empty default values in commando marks the flag as required
-	const dummyDefault = "~!_none_!~"
-
+	defaultShellValue, err := getShell()
+	if err != nil {
+		defaultShellValue = dummyDefault
+	}
+		
 	// * root command
 	// todo add a timeout flag
 	commando.
@@ -268,11 +282,11 @@ func main() {
 		AddFlag("prepare,p", "The command to execute once before every run.", commando.String, dummyDefault).
 		AddFlag("ignore-error,I", "Ignore if the process returns a non-zero return code", commando.Bool, false).
 		AddFlag("shell,s", "Whether to use shell to execute the given command.", commando.Bool, false).
+		AddFlag("shell-path", "Path to the shell to use.", commando.String, defaultShellValue).
 		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
-			// todo maybe have a custom shell support. !_default_! is when pwsh or bin/sh
 			// * getting args and flag values
 			if strings.TrimSpace(args["command"].Value) == "" {
 				internal.Log("red", "Error: not enough arguments.")
@@ -316,13 +330,18 @@ func main() {
 				internal.Log("red", "Application error: cannot parse flag values.")
 				return
 			}
+			shellPath, er := flags["shell-path"].GetString()
+			if er != nil {
+				internal.Log("red", "Application error: cannot parse flag values.")
+				return
+			}
 
 			if iterations <= 0 {
 				return
 			}
 
 			commandString := (args["command"].Value)
-			command, err := buildCommand(commandString, useShell)
+			command, err := buildCommand(commandString, useShell, shellPath)
 			if err != nil {
 				internal.Log("error", "unable to parse the given command: "+commandString)
 				internal.Log("error", "error: "+err.Error())
@@ -340,7 +359,7 @@ func main() {
 				executePrepareCmd = false
 			}
 			var prepareCmd []string
-			prepareCmd, err = buildCommand(prepareCmdString, useShell)
+			prepareCmd, err = buildCommand(prepareCmdString, useShell, shellPath)
 			if err != nil {
 				internal.Log("error", "unable to parse the given command: "+commandString)
 				internal.Log("error", "error: "+err.Error())
