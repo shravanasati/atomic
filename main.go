@@ -272,6 +272,7 @@ func main() {
 
 	// * root command
 	// todo add a timeout flag
+	// todo allow comparison of commands
 	commando.
 		Register(nil).
 		SetShortDescription("Benchmark a command for given number of iterations.").
@@ -360,10 +361,7 @@ func main() {
 				internal.Log("error", "error: "+err.Error())
 				return
 			}
-			executePrepareCmd := true
-			if prepareCmdString == dummyDefault {
-				executePrepareCmd = false
-			}
+			executePrepareCmd := prepareCmdString != dummyDefault
 			var prepareCmd []string
 			prepareCmd, err = buildCommand(prepareCmdString, useShell, shellPath)
 			if err != nil {
@@ -422,12 +420,12 @@ func main() {
 			result.Consolify()
 
 			// * getting export values
-			exportFormat, ierr := flags["export"].GetString()
+			exportFormats, ierr := flags["export"].GetString()
 			if ierr != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
 				return
 			}
-			result.Export(exportFormat)
+			result.Export(exportFormats)
 
 			outliersDetected := internal.TestOutliers(runs)
 			if outliersDetected {
@@ -437,6 +435,11 @@ func main() {
 				} else {
 					internal.Log("yellow", "Since you're already using the --warmup flag, you can consider increasing the warmup count.")
 				}
+			}
+
+			// 5000us = 5ms, avg is in microseconds
+			if avg < 5000 {
+				internal.Log("yellow", "\nWarning: The benchmark took less than 5ms on average, the results might be inaccurate.")
 			}
 
 		})
