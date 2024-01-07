@@ -277,7 +277,6 @@ func main() {
 
 	// * root command
 	// todo add a timeout flag
-	// todo allow comparison of commands
 	commando.
 		Register(nil).
 		SetShortDescription("Benchmark a command for given number of iterations.").
@@ -321,6 +320,8 @@ func main() {
 				internal.Log("red", "Application error: cannot parse flag values.")
 				return
 			}
+
+			// todo NO_COLOR functionality is broken due to colorstring
 			NO_COLOR, e = (flags["color"].GetBool())
 			if e != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
@@ -364,6 +365,7 @@ func main() {
 				return
 			}
 
+			var speedResults []internal.SpeedResult
 			// * benchmark each command given
 			for index, commandString := range strings.Split(args["commands"].Value, commando.VariadicSeparator) {
 				if _, err := colorstring.Printf("[bold][magenta]Benchmark %d: [cyan]%s", index+1, commandString); err != nil {
@@ -414,7 +416,12 @@ func main() {
 				min_ := slices.Min(runs)
 				maxDuration := internal.DurationFromNumber(max_, time.Microsecond)
 				minDuration := internal.DurationFromNumber(min_, time.Microsecond)
-				result := internal.Result{
+				speedResult := internal.SpeedResult{
+					Command:           commandString,
+					Average:           avg,
+					StandardDeviation: stddev,
+				}
+				printableResult := internal.PrintableResult{
 					Command:           strings.Join(command, " "),
 					Iterations:        iterations,
 					Average:           avgDuration.String(),
@@ -422,9 +429,8 @@ func main() {
 					Max:               maxDuration.String(),
 					Min:               minDuration.String(),
 				}
-				// todo make a slice of results and use it for command comparison
-
-				result.Consolify()
+				speedResults = append(speedResults, speedResult)
+				fmt.Println(printableResult.String())
 
 				outliersDetected := internal.TestOutliers(runs)
 				if outliersDetected {
@@ -441,9 +447,13 @@ func main() {
 					internal.Log("yellow", "\nWarning: The command took less than 5ms to execute, the results might be inaccurate.")
 				}
 
-				fmt.Println("\n")
+				// print a new line b/w each benchmark
+				fmt.Println()
 
 			}
+
+			internal.RelativeSummary(speedResults)
+
 			// * getting export values
 			// exportFormats, ierr := flags["export"].GetString()
 			// if ierr != nil {
@@ -453,19 +463,6 @@ func main() {
 			// todo export all results
 			// result.Export(exportFormats)
 
-			// for comparision
-			/*
-							let ratio = result.mean / fastest.mean;
-							let ratio_stddev = match (result.stddev, fastest.stddev) {
-				                (Some(result_stddev), Some(fastest_stddev)) => Some(
-				                    ratio
-				                        * ((result_stddev / result.mean).powi(2)
-				                            + (fastest_stddev / fastest.mean).powi(2))
-				                        .sqrt(),
-				                ),
-				                _ => None,
-				            };
-			*/
 		})
 
 	commando.Parse(nil)

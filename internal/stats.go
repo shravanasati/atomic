@@ -3,6 +3,8 @@ package internal
 import (
 	"math"
 	"sort"
+
+	"github.com/mitchellh/colorstring"
 )
 
 // borrowed from hyperfine
@@ -22,7 +24,7 @@ func CalculateAverage[T numberLike](data []T) float64 {
 }
 
 // Computes the standard deviation of the given data.
-func CalculateStandardDeviation[T numberLike](data []T, avg float64) (float64) {
+func CalculateStandardDeviation[T numberLike](data []T, avg float64) float64 {
 	var deviationSum float64 = 0
 	n := float64(len(data))
 	for _, v := range data {
@@ -77,4 +79,19 @@ func TestOutliers[T numberLike](data []T) bool {
 	return len(
 		Filter(func(z float64) bool { return z > OUTLIER_THRESHOLD },
 			zScores)) != 0
+}
+
+func RelativeSummary(results []SpeedResult) {
+	if len(results) <= 1 {
+		return
+	}
+	sort.Sort(ByAverage(results))
+	fastest := results[0]
+	colorstring.Println("[bold][white]Summary")
+	colorstring.Printf("  [cyan]%s[reset] ran \n", fastest.Command)
+	for _, r := range results[1:] {
+		ratio := r.Average / fastest.Average;
+		ratioStddev := ratio * math.Sqrt(math.Pow(r.StandardDeviation / r.Average, 2) + math.Pow(fastest.StandardDeviation/fastest.Average, 2))
+		colorstring.Printf("    [green]%.2f[reset] ± [light_green]%.2f[reset] times faster than [magenta]%s \n", ratio, ratioStddev, r.Command)
+	}
 }

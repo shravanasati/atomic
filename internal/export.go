@@ -8,18 +8,6 @@ import (
 	"text/template"
 )
 
-// Result struct which is shown at the end as benchmarking summary and is written to a file.
-// Other numerical quantities except iterations are represented as strings because they are 
-// durations, and time.Duration offers a .String() method.
-type Result struct {
-	Command           string
-	Iterations        int
-	Average           string
-	StandardDeviation string
-	Min               string
-	Max               string
-}
-
 // todo in all exports, include individual run details
 
 var summaryNoColor = `
@@ -37,7 +25,7 @@ ${yellow}Range:              ${green}{{ .Min }} ... {{ .Max }} ${reset}
 `
 
 // Consolify prints the benchmark summary of the Result struct to the console, with color codes.
-func (result *Result) Consolify() {
+func (result *PrintableResult) String() string {
 	// * result text
 	text := format(summaryColor,
 		map[string]string{"blue": CYAN, "yellow": YELLOW, "green": GREEN, "reset": RESET})
@@ -46,19 +34,21 @@ func (result *Result) Consolify() {
 		text = summaryNoColor
 	}
 
+	var bobTheBuilder strings.Builder
 	// * parsing the template
 	tmpl, err := template.New("result").Parse(text)
 	if err != nil {
 		panic(err)
 	}
-	err = tmpl.Execute(os.Stdout, result)
+	err = tmpl.Execute(&bobTheBuilder, result)
 	if err != nil {
 		panic(err)
 	}
+	return bobTheBuilder.String()
 }
 
 // textify writes the benchmark summary of the Result struct to a text file.
-func textify(r *Result) {
+func textify(r *PrintableResult) {
 	text := summaryNoColor
 
 	tmpl, err := template.New("summary").Parse(text)
@@ -84,7 +74,7 @@ func textify(r *Result) {
 
 }
 
-func markdownify(r *Result) {
+func markdownify(r *PrintableResult) {
 	text := `
 # atomic-summary
 
@@ -119,12 +109,12 @@ func markdownify(r *Result) {
 }
 
 // jsonify converts the Result struct to JSON.
-func jsonify(r *Result) ([]byte, error) {
+func jsonify(r *PrintableResult) ([]byte, error) {
 	return json.MarshalIndent(r, "", "    ")
 }
 
 // csvify converts the Result struct to CSV.
-func csvify(r *Result) {
+func csvify(r *PrintableResult) {
 	text := `
 Executed Command,Total iterations,Average time taken,Range
 {{.Command}}, {{.Iterations}}, {{.Average}} ± {{ .StandardDeviation }}, {{.Min}} ... {{.Max}}
@@ -152,7 +142,7 @@ Executed Command,Total iterations,Average time taken,Range
 }
 
 // Export writes the benchmark summary of the Result struct to a file in the specified format.
-func (result *Result) Export(exportFormats string) {
+func (result *PrintableResult) Export(exportFormats string) {
 	// * exporting the results
 
 	for _, exportFormat := range strings.Split(exportFormats, ",") {
