@@ -129,6 +129,11 @@ func (fpe *failedProcessError) Error() string {
 	return fmt.Sprintf("The command `%s` failed in the process of %s!\nerror: %s", strings.Join(fpe.command, " "), fpe.mode, fpe.err.Error())
 }
 
+func (fpe *failedProcessError) handle() {
+	internal.Log("red", fpe.Error())
+	internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -v/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
+}
+
 // runs the built command using os/exec and returns the duration the command lasted
 func run(command []string, verbose bool, ignoreError bool) (time.Duration, error) {
 	// todo measure shell spawn time too and deduct it from runs
@@ -158,8 +163,23 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 	return duration, nil
 }
 
-// todo automatically determine the number of runs -> run min 3s & min 10 runs
-func benchmark(opts BenchmarkOptions) ([]int64, bool) {
+// Determine the number of iterations from a single run duration. This happens by meeting both 
+// of these criteria:
+// 1. Minimum number of iterations to be performed: 10
+// 2. Minimum duration the benchmark should last: 3s
+func determineIterations(singleRuntime int64) int {
+	minIterations := 10
+	minDuration := (3 * time.Second).Microseconds() - singleRuntime
+	if (singleRuntime * int64(minIterations)) > minDuration {
+		return minIterations
+	} else {
+		return int(minDuration / singleRuntime)
+	}
+}
+
+// benchmark runs the given command as per the given opts and returns a slice of durations in
+// microseconds as well as the number of runs performed and whether the benchmark was successfull.
+func benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 	// actual runs, each entry stored in microseconds
 	var runs []int64
 	wordMap := map[benchmarkMode]string{
@@ -170,7 +190,7 @@ func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 	descriptionMap := map[benchmarkMode]string{
 		shellMode:  "Measuring shell spawn time",
 		warmupMode: "Performing warmup runs",
-		mainMode:   "Performing benchmark runs",
+		mainMode:   "Initial time measurement",
 	}
 	var processErr *failedProcessError
 
@@ -181,26 +201,43 @@ func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 			// used internally, ok to panic
 			panic(fmt.Sprintf("invalid mode passed to benchmark: %v", opts.mode))
 		}
-		for i := 1; i <= opts.iterations; i++ {
+		var e error
+		startI := 1
+		if opts.iterations < 0 {
+			if opts.executePrepareCmd {
+				_, e = run(opts.prepareCmd, false, false)
+				if errors.As(e, &processErr) {
+					processErr.handle()
+					return nil, 0, true
+				}
+			}
+			startI = 2
+			singleRuntime, e := run(opts.command, opts.verbose, opts.ignoreError)
+			if errors.As(e, &processErr) {
+				processErr.handle()
+				return nil, 0, true
+			}
+			opts.iterations = determineIterations(singleRuntime.Microseconds())
+		}
+		for i := startI; i <= opts.iterations; i++ {
 			internal.Log("purple", fmt.Sprintf("***********\nRunning "+word+" %d\n***********", i))
 
 			// dont output prepare command execution
 			if opts.executePrepareCmd {
 				_, e := run(opts.prepareCmd, false, opts.ignoreError)
 				if errors.As(e, &processErr) {
-					internal.Log("red", processErr.Error())
-					internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -v/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
-					return nil, true
+					processErr.handle()
+					return nil, 0, true
 				}
 			}
 			dur, e := run(opts.command, opts.verbose, opts.ignoreError)
 			if errors.As(e, &processErr) {
-				internal.Log("red", processErr.Error())
-				internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -v/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
-				return nil, true
+				processErr.handle()
+				return nil, 0, true
 			}
 			runs = append(runs, (dur.Microseconds()))
 		}
+
 	} else {
 		description, ok := descriptionMap[opts.mode]
 		if !ok {
@@ -221,40 +258,65 @@ func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 		if NO_COLOR {
 			pbarOptions = append(pbarOptions, progressbar.OptionEnableColorCodes(true))
 		}
+		barMax := opts.iterations
+		if barMax < 0 {
+			barMax = 1
+		}
 		bar := progressbar.NewOptions(
-			opts.iterations, pbarOptions...,
+			barMax, pbarOptions...,
 		)
-		for i := 1; i <= opts.iterations; i++ {
+		var e error
+		startI := 1
+		
+		// automatically determine iterations
+		if opts.iterations < 0 {
+			startI = 2
+			if opts.executePrepareCmd {
+				_, e = run(opts.prepareCmd, false, false)
+				if errors.As(e, &processErr) {
+					processErr.handle()
+					return nil, 0, true
+				}
+			}
+			singleRuntime, e := run(opts.command, opts.verbose, opts.ignoreError)
+			if errors.As(e, &processErr) {
+				processErr.handle()
+				return nil, 0, true
+			}
+			opts.iterations = determineIterations(singleRuntime.Microseconds())
+			bar.Reset()
+			bar.ChangeMax(opts.iterations)
+			bar.Add(1)
+		}
+		for i := startI; i <= opts.iterations; i++ {
 			// run the prepareCmd first
 			// dont ignore errors in prepare command execution, dont output it either
 			if opts.executePrepareCmd {
-				_, e := run(opts.prepareCmd, false, false)
+				_, e = run(opts.prepareCmd, false, false)
 				if errors.As(e, &processErr) {
-					internal.Log("red", processErr.Error())
-					internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -v/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
-					return nil, true
+					processErr.handle()
+					return nil, 0, true
 				}
 			}
-			bar.Add(1)
 			dur, e := run(opts.command, opts.verbose, opts.ignoreError)
 			if errors.As(e, &processErr) {
 				bar.Clear()
-				internal.Log("red", processErr.Error())
-				internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -v/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
-				return nil, true
+				processErr.handle()
+				return nil, 0, true
 			}
 			runs = append(runs, (dur.Microseconds()))
 			if opts.mode == mainMode {
 				bar.Describe(
 					fmt.Sprintf("[magenta]Current estimate:[reset] [green]%s[reset]",
-						internal.DurationFromNumber(
-							internal.CalculateAverage(runs), time.Microsecond).String(),
+					internal.DurationFromNumber(
+						internal.CalculateAverage(runs), time.Microsecond).String(),
 					),
 				)
 			}
+			bar.Add(1)
 		}
 	}
-	return runs, false
+	return runs, opts.iterations, false
 }
 
 func main() {
@@ -282,7 +344,7 @@ func main() {
 		SetShortDescription("Benchmark a command for given number of iterations.").
 		SetDescription("Benchmark a command for given number of iterations.").
 		AddArgument("commands...", "The command to run for benchmarking.", "").
-		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, 10).
+		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, -1).
 		AddFlag("warmup,w", "The number of warmup runs to perform.", commando.Int, 0).
 		AddFlag("prepare,p", "The command to execute once before every run.", commando.String, dummyDefault).
 		AddFlag("ignore-error,I", "Ignore if the process returns a non-zero return code", commando.Bool, false).
@@ -301,10 +363,6 @@ func main() {
 			if e != nil {
 				internal.Log("red", "The number of iterations must be an integer!")
 				internal.Log("white", e.Error())
-				return
-			}
-
-			if iterations <= 0 {
 				return
 			}
 
@@ -393,7 +451,7 @@ func main() {
 				}
 
 				// no need for runs in warmups
-				_, shouldSkip := benchmark(warmupOpts)
+				_, _, shouldSkip := benchmark(warmupOpts)
 				if shouldSkip {
 					continue
 				}
@@ -402,7 +460,7 @@ func main() {
 				benchmarkOpts.iterations = iterations
 				benchmarkOpts.mode = mainMode
 
-				runs, shouldSkip := benchmark(benchmarkOpts)
+				runs, iterations, shouldSkip := benchmark(benchmarkOpts)
 				if shouldSkip {
 					continue
 				}
