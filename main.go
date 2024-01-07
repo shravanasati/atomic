@@ -188,6 +188,7 @@ func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 				_, e := run(opts.prepareCmd, false, false)
 				if errors.As(e, &processErr) {
 					internal.Log("red", processErr.Error())
+					// todo suggest using -I and -v flag
 					return nil, true
 				}
 			}
@@ -348,6 +349,7 @@ func main() {
 				}
 
 				command, err := buildCommand(commandString, useShell, shellPath)
+				// todo replace return with continue
 				if err != nil {
 					internal.Log("error", "unable to parse the given command: "+commandString)
 					internal.Log("error", "error: "+err.Error())
@@ -411,6 +413,7 @@ func main() {
 					Max:               maxDuration.String(),
 					Min:               minDuration.String(),
 				}
+				// todo make a slice of results and use it for command comparison 
 
 				result.Consolify()
 
