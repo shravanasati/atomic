@@ -7,6 +7,7 @@ const (
 	RED    = "\033[31m"
 	GREEN  = "\033[32m"
 	YELLOW = "\033[33m"
+	BLUE = "\033[34m"
 	PURPLE = "\033[35m"
 	CYAN   = "\033[36m"
 	RESET  = "\033[0m"
@@ -15,6 +16,7 @@ const (
 // NO_COLOR is a global variable that can be set to disable color output.
 var NO_COLOR bool = false
 
+// todo refactor this to use colorstring module
 // Log prints the given message in the given color.
 func Log(color, message string) {
 	if NO_COLOR {
@@ -29,6 +31,8 @@ func Log(color, message string) {
 		fmt.Println(GREEN + message + RESET)
 	case "yellow":
 		fmt.Println(YELLOW + message + RESET)
+	case "blue":
+		fmt.Println(BLUE + message + RESET)
 	case "purple":
 		fmt.Println(PURPLE + message + RESET)
 	case "cyan":
