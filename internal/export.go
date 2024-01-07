@@ -23,9 +23,6 @@ type Result struct {
 // todo in all exports, include individual run details
 
 var summaryNoColor = `
-Benchmarking Summary
---------------------
-
 Executed Command:   {{ .Command }} 
 Total iterations:   {{ .Iterations }} 
 Average time taken: {{ .Average }} ± {{ .StandardDeviation }}
@@ -33,9 +30,6 @@ Range:              {{ .Min }} ... {{ .Max }}
 `
 
 var summaryColor = `
-${blue}Benchmarking Summary ${reset}
-${blue}-------------------- ${reset}
-
 ${yellow}Executed Command:   ${green}{{ .Command }} ${reset}
 ${yellow}Total iterations:   ${green}{{ .Iterations }} ${reset}
 ${yellow}Average time taken: ${green}{{ .Average }} ± {{ .StandardDeviation }} ${reset}

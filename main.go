@@ -14,8 +14,8 @@ import (
 	"github.com/Shravan-1908/atomic/internal"
 	"github.com/Shravan-1908/commando"
 	"github.com/google/shlex"
-	"github.com/schollz/progressbar/v3"
 	"github.com/mitchellh/colorstring"
+	"github.com/schollz/progressbar/v3"
 )
 
 const (
@@ -158,7 +158,7 @@ func run(command []string, verbose bool, ignoreError bool) (time.Duration, error
 	return duration, nil
 }
 
-// todo automatically determine the number of runs
+// todo automatically determine the number of runs -> run min 3s & min 10 runs
 func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 	// actual runs, each entry stored in microseconds
 	var runs []int64
@@ -184,18 +184,19 @@ func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 		for i := 1; i <= opts.iterations; i++ {
 			internal.Log("purple", fmt.Sprintf("***********\nRunning "+word+" %d\n***********", i))
 
-			// dont ignore errors in prepare command execution, dont output it either
+			// dont output prepare command execution
 			if opts.executePrepareCmd {
-				_, e := run(opts.prepareCmd, false, false)
+				_, e := run(opts.prepareCmd, false, opts.ignoreError)
 				if errors.As(e, &processErr) {
 					internal.Log("red", processErr.Error())
-					// todo suggest using -I and -v flag
+					internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -v/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
 					return nil, true
 				}
 			}
 			dur, e := run(opts.command, opts.verbose, opts.ignoreError)
 			if errors.As(e, &processErr) {
 				internal.Log("red", processErr.Error())
+				internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -v/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
 				return nil, true
 			}
 			runs = append(runs, (dur.Microseconds()))
@@ -230,6 +231,7 @@ func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 				_, e := run(opts.prepareCmd, false, false)
 				if errors.As(e, &processErr) {
 					internal.Log("red", processErr.Error())
+					internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -v/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
 					return nil, true
 				}
 			}
@@ -238,6 +240,7 @@ func benchmark(opts BenchmarkOptions) ([]int64, bool) {
 			if errors.As(e, &processErr) {
 				bar.Clear()
 				internal.Log("red", processErr.Error())
+				internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -v/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
 				return nil, true
 			}
 			runs = append(runs, (dur.Microseconds()))
@@ -363,7 +366,7 @@ func main() {
 
 			// * benchmark each command given
 			for index, commandString := range strings.Split(args["commands"].Value, commando.VariadicSeparator) {
-				if _, err := colorstring.Printf("[bold][magenta]Benchmark %d: [blue]%s", index + 1, commandString); err != nil {
+				if _, err := colorstring.Printf("[bold][magenta]Benchmark %d: [cyan]%s", index+1, commandString); err != nil {
 					panic(err)
 				}
 				// ! don't remove this println: for some weird reason the above colorstring.Printf
@@ -449,6 +452,20 @@ func main() {
 			// }
 			// todo export all results
 			// result.Export(exportFormats)
+
+			// for comparision
+			/*
+							let ratio = result.mean / fastest.mean;
+							let ratio_stddev = match (result.stddev, fastest.stddev) {
+				                (Some(result_stddev), Some(fastest_stddev)) => Some(
+				                    ratio
+				                        * ((result_stddev / result.mean).powi(2)
+				                            + (fastest_stddev / fastest.mean).powi(2))
+				                        .sqrt(),
+				                ),
+				                _ => None,
+				            };
+			*/
 		})
 
 	commando.Parse(nil)
