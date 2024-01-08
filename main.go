@@ -140,7 +140,7 @@ func (fpe *failedProcessError) handle() {
 		internal.Log("yellow", "This happened due to the -t/--timeout flag. Consider increasing the timeout duration for successfull execution of the command.")
 		return
 	}
-	internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -v/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
+	internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -V/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
 }
 
 type RunOptions struct {
@@ -214,7 +214,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 	descriptionMap := map[benchmarkMode]string{
 		shellMode:  "Measuring shell spawn time",
 		warmupMode: "Performing warmup runs",
-		mainMode:   "Initial time measurement",
+		mainMode:   "Performing benchmark runs",
 	}
 	var processErr *failedProcessError
 	// dont ignore errors in prepare command
@@ -376,6 +376,7 @@ func main() {
 		defaultShellValue = dummyDefault
 	}
 
+	// todo add cleanup commands
 	// * root command
 	commando.
 		Register(nil).
@@ -476,7 +477,9 @@ func main() {
 
 			var speedResults []internal.SpeedResult
 			// * benchmark each command given
-			for index, commandString := range strings.Split(args["commands"].Value, commando.VariadicSeparator) {
+			givenCommands := strings.Split(args["commands"].Value, commando.VariadicSeparator)
+			nCommands := len(givenCommands)
+			for index, commandString := range givenCommands {
 				if _, err := colorstring.Printf("[bold][magenta]Benchmark %d: [cyan]%s", index+1, commandString); err != nil {
 					panic(err)
 				}
@@ -543,7 +546,7 @@ func main() {
 					Min:               minDuration.String(),
 				}
 				speedResults = append(speedResults, speedResult)
-				fmt.Println(printableResult.String())
+				fmt.Print(printableResult.String())
 
 				outliersDetected := internal.TestOutliers(runs)
 				if outliersDetected {
@@ -560,8 +563,12 @@ func main() {
 					internal.Log("yellow", "\nWarning: The command took less than 5ms to execute, the results might be inaccurate.")
 				}
 
-				// print a new line b/w each benchmark
-				fmt.Println()
+				if index != (nCommands - 1 ) || nCommands > 1 {
+					// print new line b/w each benchmark
+					// and at the end one too if relative summary
+					// has to be printed
+					fmt.Println()
+				}
 
 			}
 
