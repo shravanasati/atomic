@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -41,6 +42,7 @@ type BenchmarkOptions struct {
 	executePrepareCmd bool
 	prepareCmd        []string
 	mode              benchmarkMode
+	timeout           time.Duration
 }
 
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
@@ -63,6 +65,9 @@ func _testPowershell() bool {
 // this value is used in cases of flags default values
 // because empty default values in commando marks the flag as required
 const dummyDefault = "~!_default_!~"
+
+// used as default value for the timeout tag
+const LARGEST_DURATION = "2540400h10m10.000000000s"
 
 // returns the default shell path (pwsh/cmd on windows, /bin/sh on unix based systems) and an error.
 func getShell() (string, error) {
@@ -122,54 +127,73 @@ func buildCommand(command string, useShell bool, shellPath string) ([]string, er
 type failedProcessError struct {
 	command []string
 	err     error
-	mode    string
+	where   string
 }
 
 func (fpe *failedProcessError) Error() string {
-	return fmt.Sprintf("The command `%s` failed in the process of %s!\nerror: %s", strings.Join(fpe.command, " "), fpe.mode, fpe.err.Error())
+	return fmt.Sprintf("The command `%s` failed in the process of %s!\nerror: %s", strings.Join(fpe.command, " "), fpe.where, fpe.err.Error())
 }
 
 func (fpe *failedProcessError) handle() {
 	internal.Log("red", fpe.Error())
+	if fpe.err == context.DeadlineExceeded {
+		internal.Log("yellow", "This happened due to the -t/--timeout flag. Consider increasing the timeout duration for successfull execution of the command.")
+		return
+	}
 	internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -v/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
 }
 
+type RunOptions struct {
+	command     []string
+	verbose     bool
+	ignoreError bool
+	timeout     time.Duration
+}
+
 // runs the built command using os/exec and returns the duration the command lasted
-func run(command []string, verbose bool, ignoreError bool) (time.Duration, error) {
+func RunCommand(runOpts *RunOptions) (time.Duration, error) {
 	// todo measure shell spawn time too and deduct it from runs
-	cmd := exec.Command(command[0], command[1:]...)
+	var cmd *exec.Cmd
+	ctx, cancel := context.WithTimeout(context.Background(), runOpts.timeout)
+	defer cancel()
+	cmd = exec.CommandContext(ctx, runOpts.command[0], runOpts.command[1:]...)
 	_, e := cmd.StdoutPipe()
 	if e != nil {
 		panic(e)
 	}
 
-	if verbose {
+	if runOpts.verbose {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
 
 	if e := cmd.Start(); e != nil {
-		return 0, &failedProcessError{command: command, err: e, mode: "starting"}
+		return 0, &failedProcessError{command: runOpts.command, err: e, where: "starting"}
 	}
 
 	init := time.Now()
 	e = cmd.Wait()
 	duration := time.Since(init)
 
-	if e != nil && !ignoreError {
-		return 0, &failedProcessError{command: command, err: e, mode: "execution"}
+	if e != nil {
+		if ctx.Err() == context.DeadlineExceeded{
+			return 0, &failedProcessError{command: runOpts.command, err: context.DeadlineExceeded, where: "execution"}
+		}
+		if !runOpts.ignoreError {
+			return 0, &failedProcessError{command: runOpts.command, err: e, where: "execution"}
+		}
 	}
 
 	return duration, nil
 }
 
-// Determine the number of iterations from a single run duration. This happens by meeting both 
+// Determine the number of iterations from a single run duration. This happens by meeting both
 // of these criteria:
 // 1. Minimum number of iterations to be performed: 10
 // 2. Minimum duration the benchmark should last: 3s
 func determineIterations(singleRuntime int64) int {
 	minIterations := 10
-	minDuration := (3 * time.Second).Microseconds() - singleRuntime
+	minDuration := (3 * time.Second).Microseconds()
 	if (singleRuntime * int64(minIterations)) > minDuration {
 		return minIterations
 	} else {
@@ -177,9 +201,9 @@ func determineIterations(singleRuntime int64) int {
 	}
 }
 
-// benchmark runs the given command as per the given opts and returns a slice of durations in
-// microseconds as well as the number of runs performed and whether the benchmark was successfull.
-func benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
+// Benchmark runs the given command as per the given opts and returns a slice of durations in
+// microseconds as well as the number of runs performed and whether the Benchmark was successfull.
+func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 	// actual runs, each entry stored in microseconds
 	var runs []int64
 	wordMap := map[benchmarkMode]string{
@@ -193,6 +217,19 @@ func benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 		mainMode:   "Initial time measurement",
 	}
 	var processErr *failedProcessError
+	// dont ignore errors in prepare command
+	prepareRunOpts := RunOptions{
+		command:     opts.prepareCmd,
+		verbose:     opts.verbose,
+		ignoreError: false,
+		timeout:     opts.timeout,
+	}
+	runOpts := RunOptions{
+		command:     opts.command,
+		verbose:     opts.verbose,
+		ignoreError: opts.ignoreError,
+		timeout:     opts.timeout,
+	}
 
 	// * looping for given iterations
 	if opts.verbose {
@@ -205,14 +242,14 @@ func benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 		startI := 1
 		if opts.iterations < 0 {
 			if opts.executePrepareCmd {
-				_, e = run(opts.prepareCmd, false, false)
+				_, e = RunCommand(&prepareRunOpts)
 				if errors.As(e, &processErr) {
 					processErr.handle()
 					return nil, 0, true
 				}
 			}
 			startI = 2
-			singleRuntime, e := run(opts.command, opts.verbose, opts.ignoreError)
+			singleRuntime, e := RunCommand(&runOpts)
 			if errors.As(e, &processErr) {
 				processErr.handle()
 				return nil, 0, true
@@ -225,13 +262,13 @@ func benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 
 			// dont output prepare command execution
 			if opts.executePrepareCmd {
-				_, e := run(opts.prepareCmd, false, opts.ignoreError)
+				_, e := RunCommand(&prepareRunOpts)
 				if errors.As(e, &processErr) {
 					processErr.handle()
 					return nil, 0, true
 				}
 			}
-			dur, e := run(opts.command, opts.verbose, opts.ignoreError)
+			dur, e := RunCommand(&runOpts)
 			if errors.As(e, &processErr) {
 				processErr.handle()
 				return nil, 0, true
@@ -268,18 +305,18 @@ func benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 		)
 		var e error
 		startI := 1
-		
+
 		// automatically determine iterations
 		if opts.iterations < 0 {
 			startI = 2
 			if opts.executePrepareCmd {
-				_, e = run(opts.prepareCmd, false, false)
+				_, e = RunCommand(&prepareRunOpts)
 				if errors.As(e, &processErr) {
 					processErr.handle()
 					return nil, 0, true
 				}
 			}
-			singleRuntime, e := run(opts.command, opts.verbose, opts.ignoreError)
+			singleRuntime, e := RunCommand(&runOpts)
 			if errors.As(e, &processErr) {
 				processErr.handle()
 				return nil, 0, true
@@ -294,13 +331,13 @@ func benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 			// run the prepareCmd first
 			// dont ignore errors in prepare command execution, dont output it either
 			if opts.executePrepareCmd {
-				_, e = run(opts.prepareCmd, false, false)
+				_, e = RunCommand(&prepareRunOpts)
 				if errors.As(e, &processErr) {
 					processErr.handle()
 					return nil, 0, true
 				}
 			}
-			dur, e := run(opts.command, opts.verbose, opts.ignoreError)
+			dur, e := RunCommand(&runOpts)
 			if errors.As(e, &processErr) {
 				bar.Clear()
 				processErr.handle()
@@ -310,8 +347,8 @@ func benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 			if opts.mode == mainMode {
 				bar.Describe(
 					fmt.Sprintf("[magenta]Current estimate:[reset] [green]%s[reset]",
-					internal.DurationFromNumber(
-						internal.CalculateAverage(runs), time.Microsecond).String(),
+						internal.DurationFromNumber(
+							internal.CalculateAverage(runs), time.Microsecond).String(),
 					),
 				)
 			}
@@ -340,7 +377,6 @@ func main() {
 	}
 
 	// * root command
-	// todo add a timeout flag
 	commando.
 		Register(nil).
 		SetShortDescription("Benchmark a command for given number of iterations.").
@@ -352,6 +388,7 @@ func main() {
 		AddFlag("ignore-error,I", "Ignore if the process returns a non-zero return code", commando.Bool, false).
 		AddFlag("shell,s", "Whether to use shell to execute the given command.", commando.Bool, false).
 		AddFlag("shell-path", "Path to the shell to use.", commando.String, defaultShellValue).
+		AddFlag("timeout,t", "The timeout for a single command.", commando.String, LARGEST_DURATION).
 		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
@@ -425,6 +462,18 @@ func main() {
 				return
 			}
 
+			timeoutString, err := flags["timeout"].GetString()
+			if err != nil {
+				internal.Log("red", "Application error: cannot parse flag values.")
+				return
+			}
+			timeout, err := time.ParseDuration(timeoutString)
+			if err != nil {
+				internal.Log("red", "unable to parse timeout: "+timeoutString)
+				internal.Log("red", "error: ")
+				return
+			}
+
 			var speedResults []internal.SpeedResult
 			// * benchmark each command given
 			for index, commandString := range strings.Split(args["commands"].Value, commando.VariadicSeparator) {
@@ -450,10 +499,11 @@ func main() {
 					prepareCmd:        prepareCmd,
 					executePrepareCmd: executePrepareCmd,
 					mode:              warmupMode,
+					timeout:           timeout,
 				}
 
 				// no need for runs in warmups
-				_, _, shouldSkip := benchmark(warmupOpts)
+				_, _, shouldSkip := Benchmark(warmupOpts)
 				if shouldSkip {
 					continue
 				}
@@ -462,7 +512,7 @@ func main() {
 				benchmarkOpts.iterations = iterations
 				benchmarkOpts.mode = mainMode
 
-				runs, iterations, shouldSkip := benchmark(benchmarkOpts)
+				runs, iterations, shouldSkip := Benchmark(benchmarkOpts)
 				if shouldSkip {
 					continue
 				}
