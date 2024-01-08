@@ -218,6 +218,7 @@ func benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				return nil, 0, true
 			}
 			opts.iterations = determineIterations(singleRuntime.Microseconds())
+			runs = append(runs, singleRuntime.Microseconds())
 		}
 		for i := startI; i <= opts.iterations; i++ {
 			internal.Log("purple", fmt.Sprintf("***********\nRunning "+word+" %d\n***********", i))
@@ -287,6 +288,7 @@ func benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 			bar.Reset()
 			bar.ChangeMax(opts.iterations)
 			bar.Add(1)
+			runs = append(runs, singleRuntime.Microseconds())
 		}
 		for i := startI; i <= opts.iterations; i++ {
 			// run the prepareCmd first
@@ -463,6 +465,9 @@ func main() {
 				runs, iterations, shouldSkip := benchmark(benchmarkOpts)
 				if shouldSkip {
 					continue
+				}
+				if len(runs) != iterations {
+					panic(fmt.Sprintf("mismatch between len(runs)=%d and iterations=%d", len(runs), iterations))
 				}
 
 				// * intialising the template struct
