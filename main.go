@@ -41,6 +41,8 @@ type BenchmarkOptions struct {
 	ignoreError       bool
 	executePrepareCmd bool
 	prepareCmd        []string
+	executeCleanupCmd bool
+	cleanupCmd        []string
 	mode              benchmarkMode
 	timeout           time.Duration
 }
@@ -66,8 +68,11 @@ func _testPowershell() bool {
 // because empty default values in commando marks the flag as required
 const dummyDefault = "~!_default_!~"
 
-// used as default value for the timeout tag
-const LARGEST_DURATION = "2540400h10m10.000000000s"
+// used as default value for the timeout flag,
+// borrowed from [time.Duration.String]
+const LARGEST_DURATION_STRING = "2540400h10m10.000000000s"
+
+var LargestDuration, _ = time.ParseDuration(LARGEST_DURATION_STRING)
 
 // returns the default shell path (pwsh/cmd on windows, /bin/sh on unix based systems) and an error.
 func getShell() (string, error) {
@@ -152,6 +157,7 @@ type RunOptions struct {
 
 // runs the built command using os/exec and returns the duration the command lasted
 func RunCommand(runOpts *RunOptions) (time.Duration, error) {
+	// todo refactor to use runresponse and benchmark-response
 	// todo measure shell spawn time too and deduct it from runs
 	var cmd *exec.Cmd
 	ctx, cancel := context.WithTimeout(context.Background(), runOpts.timeout)
@@ -176,7 +182,7 @@ func RunCommand(runOpts *RunOptions) (time.Duration, error) {
 	duration := time.Since(init)
 
 	if e != nil {
-		if ctx.Err() == context.DeadlineExceeded{
+		if ctx.Err() == context.DeadlineExceeded {
 			return 0, &failedProcessError{command: runOpts.command, err: context.DeadlineExceeded, where: "execution"}
 		}
 		if !runOpts.ignoreError {
@@ -217,7 +223,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 		mainMode:   "Performing benchmark runs",
 	}
 	var processErr *failedProcessError
-	// dont ignore errors in prepare command
+	// dont ignore errors in prepare and cleanup command
 	prepareRunOpts := RunOptions{
 		command:     opts.prepareCmd,
 		verbose:     opts.verbose,
@@ -230,6 +236,13 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 		ignoreError: opts.ignoreError,
 		timeout:     opts.timeout,
 	}
+	cleanupRunOpts := RunOptions{
+		command:     opts.cleanupCmd,
+		verbose:     opts.verbose,
+		ignoreError: false,
+		timeout:     opts.timeout,
+	}
+	// todo refactor this code to eliminate code repetition
 
 	// * looping for given iterations
 	if opts.verbose {
@@ -256,6 +269,13 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 			}
 			opts.iterations = determineIterations(singleRuntime.Microseconds())
 			runs = append(runs, singleRuntime.Microseconds())
+			if opts.executeCleanupCmd {
+				_, e := RunCommand(&cleanupRunOpts)
+				if errors.As(e, &processErr) {
+					processErr.handle()
+					return nil, 0, true
+				}
+			}
 		}
 		for i := startI; i <= opts.iterations; i++ {
 			internal.Log("purple", fmt.Sprintf("***********\nRunning "+word+" %d\n***********", i))
@@ -274,6 +294,14 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				return nil, 0, true
 			}
 			runs = append(runs, (dur.Microseconds()))
+
+			if opts.executeCleanupCmd {
+				_, e := RunCommand(&cleanupRunOpts)
+				if errors.As(e, &processErr) {
+					processErr.handle()
+					return nil, 0, true
+				}
+			}
 		}
 
 	} else {
@@ -326,6 +354,14 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 			bar.ChangeMax(opts.iterations)
 			bar.Add(1)
 			runs = append(runs, singleRuntime.Microseconds())
+
+			if opts.executeCleanupCmd {
+				_, e := RunCommand(&cleanupRunOpts)
+				if errors.As(e, &processErr) {
+					processErr.handle()
+					return nil, 0, true
+				}
+			}
 		}
 		for i := startI; i <= opts.iterations; i++ {
 			// run the prepareCmd first
@@ -344,15 +380,23 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				return nil, 0, true
 			}
 			runs = append(runs, (dur.Microseconds()))
+			
 			if opts.mode == mainMode {
 				bar.Describe(
-					fmt.Sprintf("[magenta]Current estimate:[reset] [green]%s[reset]",
+					fmt.Sprintf("[magenta]Current estimate: [green]%s[reset]",
 						internal.DurationFromNumber(
 							internal.CalculateAverage(runs), time.Microsecond).String(),
 					),
 				)
 			}
 			bar.Add(1)
+			if opts.executeCleanupCmd {
+				_, e := RunCommand(&cleanupRunOpts)
+				if errors.As(e, &processErr) {
+					processErr.handle()
+					return nil, 0, true
+				}
+			}
 		}
 	}
 	return runs, opts.iterations, false
@@ -369,14 +413,14 @@ func main() {
 	commando.
 		SetExecutableName(NAME).
 		SetVersion(VERSION).
-		SetDescription("atomic is a simple CLI tool to make benchmarking easy. \nFor more info visit https://github.com/Shravan-1908/atomic.")
+		SetDescription("atomic is a simple CLI tool to benchmark commands. \nFor more info visit https://github.com/Shravan-1908/atomic.")
 
 	defaultShellValue, err := getShell()
 	if err != nil {
 		defaultShellValue = dummyDefault
 	}
 
-	// todo add cleanup commands
+	// todo track memory usage
 	// * root command
 	commando.
 		Register(nil).
@@ -386,10 +430,11 @@ func main() {
 		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, -1).
 		AddFlag("warmup,w", "The number of warmup runs to perform.", commando.Int, 0).
 		AddFlag("prepare,p", "The command to execute once before every run.", commando.String, dummyDefault).
+		AddFlag("cleanup,c", "The command to execute once after every run.", commando.String, dummyDefault).
 		AddFlag("ignore-error,I", "Ignore if the process returns a non-zero return code", commando.Bool, false).
 		AddFlag("shell,s", "Whether to use shell to execute the given command.", commando.Bool, false).
 		AddFlag("shell-path", "Path to the shell to use.", commando.String, defaultShellValue).
-		AddFlag("timeout,t", "The timeout for a single command.", commando.String, LARGEST_DURATION).
+		AddFlag("timeout,t", "The timeout for a single command.", commando.String, LARGEST_DURATION_STRING).
 		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
@@ -463,6 +508,21 @@ func main() {
 				return
 			}
 
+			cleanupCmdString, err := flags["cleanup"].GetString()
+			if err != nil {
+				internal.Log("red", "unable to parse the given command: "+cleanupCmdString)
+				internal.Log("red", "error: "+err.Error())
+				return
+			}
+			executeCleanupCmd := cleanupCmdString != dummyDefault
+			var cleanupCmd []string
+			cleanupCmd, err = buildCommand(cleanupCmdString, useShell, shellPath)
+			if err != nil {
+				internal.Log("red", "unable to parse the given command: "+cleanupCmdString)
+				internal.Log("red", "error: "+err.Error())
+				return
+			}
+
 			timeoutString, err := flags["timeout"].GetString()
 			if err != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
@@ -501,6 +561,8 @@ func main() {
 					ignoreError:       ignoreError,
 					prepareCmd:        prepareCmd,
 					executePrepareCmd: executePrepareCmd,
+					executeCleanupCmd: executeCleanupCmd,
+					cleanupCmd:        cleanupCmd,
 					mode:              warmupMode,
 					timeout:           timeout,
 				}
@@ -559,11 +621,11 @@ func main() {
 				}
 
 				// 5000us = 5ms, avg is in microseconds
-				if min_ < 5000 {
+				if min_ < (5 * time.Millisecond).Microseconds() {
 					internal.Log("yellow", "\nWarning: The command took less than 5ms to execute, the results might be inaccurate.")
 				}
 
-				if index != (nCommands - 1 ) || nCommands > 1 {
+				if index != (nCommands-1) || nCommands > 1 {
 					// print new line b/w each benchmark
 					// and at the end one too if relative summary
 					// has to be printed
