@@ -115,5 +115,5 @@ func DurationFromNumber[T numberLike](number T, unit time.Duration) time.Duratio
 		// again, function only used internally, invalid duration must not be present
 		panic("unable to parse duration: " + timeString + " in DurationFromNumber \n" + err.Error())
 	}
-	return duration
+	return duration.Round(time.Microsecond)
 }

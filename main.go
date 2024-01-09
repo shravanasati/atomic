@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
+	// "path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -43,6 +43,7 @@ type BenchmarkOptions struct {
 	prepareCmd        []string
 	executeCleanupCmd bool
 	cleanupCmd        []string
+	shellCalibration  time.Duration
 	mode              benchmarkMode
 	timeout           time.Duration
 }
@@ -75,29 +76,29 @@ const LARGEST_DURATION_STRING = "2540400h10m10.000000000s"
 var LargestDuration, _ = time.ParseDuration(LARGEST_DURATION_STRING)
 
 // returns the default shell path (pwsh/cmd on windows, /bin/sh on unix based systems) and an error.
-func getShell() (string, error) {
+func getDefaultShell() (string, error) {
 	if WINDOWS {
 		// windows
-		// first test if powershell is present and use it if present
-		if _testPowershell() {
-			return "powershell", nil
-		} else {
-			// fall back to cmd.exe if pwsh absent
+		// yield cmd.exe first because its shell calibration is more accurate than powershell
+		// lookup the comspec env variable -> it contains the path to cmd.exe
+		return "cmd.exe", nil
+		// comspec, ok := os.LookupEnv("ComSpec")
+		// if ok {
+		// 	return filepath.ToSlash(comspec), nil
+		// } else {
+		// 	// otherwise find cmd.exe in $SystemRoot/System32
+		// 	systemRoot, ok := os.LookupEnv("SystemRoot")
+		// 	if !ok {
+		// 		// fall back to powershell
+		// 		if _testPowershell() {
+		// 			return "powershell", nil
+		// 		}
+		// 		return "", fmt.Errorf("buildCommand with useShell=true on windows: neither ComSpec nor SystemRoot is set. powershell not found either")
+		// 	}
+		// 	comspec = filepath.Join(systemRoot, "System32", "cmd.exe")
+		// 	return filepath.ToSlash(comspec), nil
+		// }
 
-			// lookup the comspec env variable -> it contains the path to cmd.exe
-			comspec, ok := os.LookupEnv("ComSpec")
-			if ok {
-				return comspec, nil
-			} else {
-				// otherwise find cmd.exe in $SystemRoot/System32
-				systemRoot, ok := os.LookupEnv("SystemRoot")
-				if !ok {
-					return "", fmt.Errorf("buildCommand with useShell=true on windows: neither ComSpec nor SystemRoot is set")
-				}
-				comspec = filepath.Join(systemRoot, "System32", "cmd.exe")
-				return comspec, nil
-			}
-		}
 	} else {
 		// posix
 		return "/bin/sh", nil
@@ -122,7 +123,7 @@ func buildCommand(command string, useShell bool, shellPath string) ([]string, er
 		} else {
 			commandSwitch = "-c"
 		}
-		builtCommand, err = shlex.Split(fmt.Sprintf("%s %s \"%s\"", shellPath, commandSwitch, command))
+		builtCommand, err = shlex.Split(fmt.Sprintf("\"%s\" %s \"%s\"", shellPath, commandSwitch, command))
 	} else {
 		builtCommand, err = shlex.Split(command)
 	}
@@ -158,7 +159,6 @@ type RunOptions struct {
 // runs the built command using os/exec and returns the duration the command lasted
 func RunCommand(runOpts *RunOptions) (time.Duration, error) {
 	// todo refactor to use runresponse and benchmark-response
-	// todo measure shell spawn time too and deduct it from runs
 	var cmd *exec.Cmd
 	ctx, cancel := context.WithTimeout(context.Background(), runOpts.timeout)
 	defer cancel()
@@ -268,6 +268,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				return nil, 0, true
 			}
 			opts.iterations = determineIterations(singleRuntime.Microseconds())
+			singleRuntime -= opts.shellCalibration
 			runs = append(runs, singleRuntime.Microseconds())
 			if opts.executeCleanupCmd {
 				_, e := RunCommand(&cleanupRunOpts)
@@ -293,7 +294,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				processErr.handle()
 				return nil, 0, true
 			}
-			runs = append(runs, (dur.Microseconds()))
+			runs = append(runs, (dur - opts.shellCalibration).Microseconds())
 
 			if opts.executeCleanupCmd {
 				_, e := RunCommand(&cleanupRunOpts)
@@ -350,6 +351,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				return nil, 0, true
 			}
 			opts.iterations = determineIterations(singleRuntime.Microseconds())
+			singleRuntime -= opts.shellCalibration
 			bar.Reset()
 			bar.ChangeMax(opts.iterations)
 			bar.Add(1)
@@ -379,8 +381,8 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				processErr.handle()
 				return nil, 0, true
 			}
-			runs = append(runs, (dur.Microseconds()))
-			
+			runs = append(runs, (dur - opts.shellCalibration).Microseconds())
+
 			if opts.mode == mainMode {
 				bar.Describe(
 					fmt.Sprintf("[magenta]Current estimate: [green]%s[reset]",
@@ -415,7 +417,7 @@ func main() {
 		SetVersion(VERSION).
 		SetDescription("atomic is a simple CLI tool to benchmark commands. \nFor more info visit https://github.com/Shravan-1908/atomic.")
 
-	defaultShellValue, err := getShell()
+	defaultShellValue, err := getDefaultShell()
 	if err != nil {
 		defaultShellValue = dummyDefault
 	}
@@ -535,6 +537,39 @@ func main() {
 				return
 			}
 
+			var shellCalibration time.Duration
+			if useShell {
+				shellEmptyCommand, err := buildCommand("''", true, shellPath)
+				if err != nil {
+					internal.Log("red", "unable to calibrate shell: make sure you can run "+shellPath)
+					internal.Log("red", "error: "+err.Error())
+					return
+				}
+				calibrationOpts := BenchmarkOptions{
+					command:           shellEmptyCommand,
+					iterations:        -1,
+					verbose:           false,
+					ignoreError:       false,
+					executePrepareCmd: false,
+					prepareCmd:        []string{},
+					executeCleanupCmd: false,
+					cleanupCmd:        []string{},
+					mode:              shellMode,
+					timeout:           LargestDuration,
+					shellCalibration:  shellCalibration,
+				}
+				if strings.Contains(shellPath, "cmd.exe") {
+					calibrationOpts.ignoreError = true
+				}
+				runs, _, failed := Benchmark(calibrationOpts)
+				if failed {
+					return
+				}
+				shellAvg := internal.CalculateAverage(runs)
+				shellCalibration = internal.DurationFromNumber(shellAvg, time.Microsecond)
+			}
+			// fmt.Println(shellCalibration)
+
 			var speedResults []internal.SpeedResult
 			// * benchmark each command given
 			givenCommands := strings.Split(args["commands"].Value, commando.VariadicSeparator)
@@ -563,6 +598,7 @@ func main() {
 					executePrepareCmd: executePrepareCmd,
 					executeCleanupCmd: executeCleanupCmd,
 					cleanupCmd:        cleanupCmd,
+					shellCalibration:  shellCalibration,
 					mode:              warmupMode,
 					timeout:           timeout,
 				}
@@ -587,6 +623,11 @@ func main() {
 
 				// * intialising the template struct
 				avg := internal.CalculateAverage(runs)
+				if avg < 0 {
+					internal.Log("red", "shell calibration is yielding inaccurate results")
+					internal.Log("yellow", "Try executing the command without the -s/--shell flag.")
+					continue
+				}
 				stddev := internal.CalculateStandardDeviation(runs, avg)
 				avgDuration := internal.DurationFromNumber(avg, time.Microsecond)
 				stddevDuration := internal.DurationFromNumber(stddev, time.Microsecond)
@@ -623,6 +664,9 @@ func main() {
 				// 5000us = 5ms, avg is in microseconds
 				if min_ < (5 * time.Millisecond).Microseconds() {
 					internal.Log("yellow", "\nWarning: The command took less than 5ms to execute, the results might be inaccurate.")
+					if useShell {
+						internal.Log("yellow", "Try running the command without the -s/--shell flag.")
+					}
 				}
 
 				if index != (nCommands-1) || nCommands > 1 {
