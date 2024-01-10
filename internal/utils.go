@@ -28,8 +28,8 @@ func MapFunc[T any, S any](function func(T) S, slice []T) []S {
 	return mappedSlice
 }
 
-// Filter takes a predicate function and returns all the elements of the slice which return true for the function.
-func Filter[T any](function func(T) bool, slice []T) []T {
+// FilterFunc takes a predicate function and returns all the elements of the slice which return true for the function.
+func FilterFunc[T any](function func(T) bool, slice []T) []T {
 	var filtered []T
 	for _, v := range slice {
 		if function(v) {

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
+
 	// "path/filepath"
 	"runtime"
 	"slices"
@@ -203,7 +205,7 @@ func determineIterations(singleRuntime int64) int {
 	if (singleRuntime * int64(minIterations)) > minDuration {
 		return minIterations
 	} else {
-		return int(minDuration / singleRuntime)
+		return int(float64(minDuration) / float64(singleRuntime))
 	}
 }
 
@@ -440,6 +442,7 @@ func main() {
 		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
+		AddFlag("outlier-threshold", "Minimum number of runs to be outliers for the outlier warning to be displayed, in percentage.", commando.String, "0").
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 			// * getting args and flag values
 			if strings.TrimSpace(args["commands"].Value) == "" {
@@ -473,6 +476,22 @@ func main() {
 				return
 			}
 			internal.NO_COLOR = !NO_COLOR
+
+			outlierThresholdString, e := flags["outlier-threshold"].GetString()
+			if e != nil {
+				internal.Log("red", "Application error: cannot parse flag values.")
+				return
+			}
+			outlierThreshold, e := strconv.ParseFloat(outlierThresholdString, 64)
+			if e != nil {
+				internal.Log("red", "The outlier threshold percentage must be a decimal value.")
+				return
+			}
+			if outlierThreshold < 0 && outlierThreshold > 100 {
+				internal.Log("red", "The value outlier threshold can only be between 0 and 100, inclusive.")
+				return
+			}
+			internal.OUTLIER_THRESHOLD = outlierThreshold
 
 			ignoreError, er := flags["ignore-error"].GetBool()
 			if er != nil {
@@ -564,7 +583,7 @@ func main() {
 				runs, _, failed := Benchmark(calibrationOpts)
 				if failed {
 					return
-				}
+				} 
 				shellAvg := internal.CalculateAverage(runs)
 				shellCalibration = internal.DurationFromNumber(shellAvg, time.Microsecond)
 			}
@@ -661,7 +680,7 @@ func main() {
 					}
 				}
 
-				// 5000us = 5ms, avg is in microseconds
+				// min is in microseconds
 				if min_ < (5 * time.Millisecond).Microseconds() {
 					internal.Log("yellow", "\nWarning: The command took less than 5ms to execute, the results might be inaccurate.")
 					if useShell {
