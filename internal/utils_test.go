@@ -2,7 +2,10 @@ package internal
 
 import (
 	"os"
+	"reflect"
+	"strconv"
 	"testing"
+	"time"
 )
 
 func Test_format(t *testing.T) {
@@ -86,4 +89,59 @@ func Test_writeToFile(t *testing.T) {
 		}
 	})
 
+}
+
+func TestDurationFromNumber(t *testing.T) {
+	type args[T numberLike] struct {
+		number T
+		unit   time.Duration
+	}
+	type testCase[S numberLike] struct {
+		name        string
+		args        args[S]
+		want        time.Duration
+		shouldPanic bool
+	}
+	floatTests := []testCase[float64]{
+		{"fail1", args[float64]{number: 45, unit: time.Hour + 4}, 0, true},
+		{"fail2", args[float64]{number: 45, unit: time.Second * 4}, 0, true},
+		{"pass1", args[float64]{number: 25, unit: time.Second}, time.Second * 25, false},
+		{"pass2", args[float64]{number: 789, unit: time.Microsecond}, 789 * time.Microsecond, false},
+	}
+	for _, tt := range floatTests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if err := recover(); err != nil {
+					if !tt.shouldPanic {
+						t.Errorf("DurationFromNumber() panicked when it shouldn't: args=%v", tt.args)
+					}
+				}
+			}()
+			if got := DurationFromNumber(tt.args.number, tt.args.unit); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("DurationFromNumber() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMapFunc(t *testing.T) {
+	type args[T, S any] struct {
+		function func(T) S
+		slice    []T
+	}
+	tests := []struct {
+		name string
+		args args[int, string]
+		want []string
+	}{
+		{name: "pass1", args: args[int, string]{func(i int) string { return strconv.Itoa(i) }, []int{}}, want: []string{}},
+		{name: "pass2", args: args[int, string]{func(i int) string { return strconv.Itoa(i) }, []int{1, 2, 12, 15}}, want: []string{"1", "2", "12", "15"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MapFunc(tt.args.function, tt.args.slice); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MapFunc() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

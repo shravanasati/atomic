@@ -179,6 +179,7 @@ func RunCommand(runOpts *RunOptions) (time.Duration, error) {
 		return 0, &failedProcessError{command: runOpts.command, err: e, where: "starting"}
 	}
 
+	// todo shit just hangs
 	init := time.Now()
 	e = cmd.Wait()
 	duration := time.Since(init)
@@ -568,7 +569,7 @@ func main() {
 					command:           shellEmptyCommand,
 					iterations:        -1,
 					verbose:           false,
-					ignoreError:       false,
+					ignoreError:       true,
 					executePrepareCmd: false,
 					prepareCmd:        []string{},
 					executeCleanupCmd: false,
@@ -576,9 +577,6 @@ func main() {
 					mode:              shellMode,
 					timeout:           LargestDuration,
 					shellCalibration:  shellCalibration,
-				}
-				if strings.Contains(shellPath, "cmd.exe") {
-					calibrationOpts.ignoreError = true
 				}
 				runs, _, failed := Benchmark(calibrationOpts)
 				if failed {
@@ -699,13 +697,13 @@ func main() {
 
 			internal.RelativeSummary(speedResults)
 
-			// * getting export values
+			// // * getting export values
 			// exportFormats, ierr := flags["export"].GetString()
 			// if ierr != nil {
 			// 	internal.Log("red", "Application error: cannot parse flag values.")
 			// 	return
 			// }
-			// todo export all results
+			// // todo export all results
 			// result.Export(exportFormats)
 
 		})
