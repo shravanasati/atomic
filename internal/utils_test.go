@@ -139,7 +139,7 @@ func TestMapFunc(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := MapFunc(tt.args.function, tt.args.slice); !reflect.DeepEqual(got, tt.want) {
+			if got := MapFunc[int, string, []string, []int](tt.args.function, tt.args.slice); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("MapFunc() = %v, want %v", got, tt.want)
 			}
 		})

@@ -74,7 +74,7 @@ func calculateMAD(data []float64, median float64) float64 {
 // Returns true if there are any statistical outliers in the data.
 func TestOutliers[T numberLike](data []T) bool {
 	zScores := calculateModifiedZScore(
-		MapFunc(
+		MapFunc[T, float64, []float64, []T](
 			func(x T) float64 { return float64(x) },
 			data,
 		),

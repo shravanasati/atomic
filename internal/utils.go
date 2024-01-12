@@ -20,8 +20,8 @@ func format(text string, params map[string]string) string {
 }
 
 // MapFunc returns a slice of all elements in the given slice mapped by the given function.
-func MapFunc[T any, S any](function func(T) S, slice []T) []S {
-	mappedSlice := make([]S, len(slice))
+func MapFunc[T any, S any, Ss ~[]S, Ts ~[]T](function func(T) S, slice Ts) Ss {
+	mappedSlice := make(Ss, len(slice))
 	for i, v := range slice {
 		mappedSlice[i] = function(v)
 	}
@@ -29,8 +29,8 @@ func MapFunc[T any, S any](function func(T) S, slice []T) []S {
 }
 
 // FilterFunc takes a predicate function and returns all the elements of the slice which return true for the function.
-func FilterFunc[T any](function func(T) bool, slice []T) []T {
-	var filtered []T
+func FilterFunc[T any, Ts ~[]T](function func(T) bool, slice Ts) Ts {
+	var filtered Ts
 	for _, v := range slice {
 		if function(v) {
 			filtered = append(filtered, v)
