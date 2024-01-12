@@ -257,8 +257,9 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 		var e error
 		startI := 1
 		if opts.iterations < 0 {
+			var prepareDuration, cleanupDuration time.Duration
 			if opts.executePrepareCmd {
-				_, e = RunCommand(&prepareRunOpts)
+				prepareDuration, e = RunCommand(&prepareRunOpts)
 				if errors.As(e, &processErr) {
 					processErr.handle()
 					return nil, 0, true
@@ -270,16 +271,16 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				processErr.handle()
 				return nil, 0, true
 			}
-			opts.iterations = determineIterations(singleRuntime.Microseconds())
-			singleRuntime -= opts.shellCalibration
-			runs = append(runs, singleRuntime.Microseconds())
 			if opts.executeCleanupCmd {
-				_, e := RunCommand(&cleanupRunOpts)
+				cleanupDuration, e = RunCommand(&cleanupRunOpts)
 				if errors.As(e, &processErr) {
 					processErr.handle()
 					return nil, 0, true
 				}
 			}
+			opts.iterations = determineIterations(singleRuntime.Microseconds() + prepareDuration.Microseconds() + cleanupDuration.Microseconds())
+			singleRuntime -= opts.shellCalibration
+			runs = append(runs, singleRuntime.Microseconds())
 		}
 		for i := startI; i <= opts.iterations; i++ {
 			internal.Log("purple", fmt.Sprintf("***********\nRunning "+word+" %d\n***********", i))
@@ -337,12 +338,13 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 		)
 		var e error
 		startI := 1
+		var prepareDuration, cleanupDuration time.Duration
 
 		// automatically determine iterations
 		if opts.iterations < 0 {
 			startI = 2
 			if opts.executePrepareCmd {
-				_, e = RunCommand(&prepareRunOpts)
+				prepareDuration, e = RunCommand(&prepareRunOpts)
 				if errors.As(e, &processErr) {
 					processErr.handle()
 					return nil, 0, true
@@ -353,20 +355,20 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				processErr.handle()
 				return nil, 0, true
 			}
-			opts.iterations = determineIterations(singleRuntime.Microseconds())
-			singleRuntime -= opts.shellCalibration
-			bar.Reset()
-			bar.ChangeMax(opts.iterations)
-			bar.Add(1)
-			runs = append(runs, singleRuntime.Microseconds())
-
+			
 			if opts.executeCleanupCmd {
-				_, e := RunCommand(&cleanupRunOpts)
+				cleanupDuration, e = RunCommand(&cleanupRunOpts)
 				if errors.As(e, &processErr) {
 					processErr.handle()
 					return nil, 0, true
 				}
 			}
+			opts.iterations = determineIterations(singleRuntime.Microseconds() + prepareDuration.Microseconds() + cleanupDuration.Microseconds())
+			singleRuntime -= opts.shellCalibration
+			bar.Reset()
+			bar.ChangeMax(opts.iterations)
+			bar.Add(1)
+			runs = append(runs, singleRuntime.Microseconds())
 		}
 		for i := startI; i <= opts.iterations; i++ {
 			// run the prepareCmd first
