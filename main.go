@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-
 	// "path/filepath"
 	"runtime"
 	"slices"
@@ -165,24 +164,22 @@ func RunCommand(runOpts *RunOptions) (time.Duration, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), runOpts.timeout)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, runOpts.command[0], runOpts.command[1:]...)
-	_, e := cmd.StdoutPipe()
-	if e != nil {
-		panic(e)
-	}
 
 	if runOpts.verbose {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
 
-	if e := cmd.Start(); e != nil {
+	var e error
+	if e = cmd.Start(); e != nil {
 		return 0, &failedProcessError{command: runOpts.command, err: e, where: "starting"}
 	}
-
-	// todo shit just hangs
 	init := time.Now()
 	e = cmd.Wait()
 	duration := time.Since(init)
+	
+	// todo use user time and system time too
+	// cmd.ProcessState
 
 	if e != nil {
 		if ctx.Err() == context.DeadlineExceeded {
@@ -200,13 +197,15 @@ func RunCommand(runOpts *RunOptions) (time.Duration, error) {
 // of these criteria:
 // 1. Minimum number of iterations to be performed: 10
 // 2. Minimum duration the benchmark should last: 3s
-func determineIterations(singleRuntime int64) int {
+func determineIterations(singleRuntime time.Duration) int {
+	// todo adjust iterations based on running average
 	minIterations := 10
 	minDuration := (3 * time.Second).Microseconds()
-	if (singleRuntime * int64(minIterations)) > minDuration {
+	if (singleRuntime.Microseconds() * int64(minIterations)) > minDuration {
 		return minIterations
 	} else {
-		return int(float64(minDuration) / float64(singleRuntime))
+		runs := int(float64(minDuration) / float64(singleRuntime.Microseconds()))
+		return runs
 	}
 }
 
@@ -278,7 +277,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 					return nil, 0, true
 				}
 			}
-			opts.iterations = determineIterations(singleRuntime.Microseconds() + prepareDuration.Microseconds() + cleanupDuration.Microseconds())
+			opts.iterations = determineIterations(singleRuntime + prepareDuration + cleanupDuration)
 			singleRuntime -= opts.shellCalibration
 			runs = append(runs, singleRuntime.Microseconds())
 		}
@@ -363,7 +362,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 					return nil, 0, true
 				}
 			}
-			opts.iterations = determineIterations(singleRuntime.Microseconds() + prepareDuration.Microseconds() + cleanupDuration.Microseconds())
+			opts.iterations = determineIterations(singleRuntime + prepareDuration + cleanupDuration)
 			singleRuntime -= opts.shellCalibration
 			bar.Reset()
 			bar.ChangeMax(opts.iterations)
