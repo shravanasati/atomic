@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"strconv"
+
 	// "path/filepath"
 	"runtime"
 	"slices"
@@ -177,7 +179,7 @@ func RunCommand(runOpts *RunOptions) (time.Duration, error) {
 	init := time.Now()
 	e = cmd.Wait()
 	duration := time.Since(init)
-	
+
 	// todo use user time and system time too
 	// cmd.ProcessState
 
@@ -193,19 +195,22 @@ func RunCommand(runOpts *RunOptions) (time.Duration, error) {
 	return duration, nil
 }
 
+var MinIterations = 10
+var MaxIterations = math.MaxInt64
+var MinDuration = (3 * time.Second).Microseconds()
+
 // Determine the number of iterations from a single run duration. This happens by meeting both
 // of these criteria:
 // 1. Minimum number of iterations to be performed: 10
 // 2. Minimum duration the benchmark should last: 3s
 func determineIterations(singleRuntime time.Duration) int {
+	// todo add min and max runs
 	// todo adjust iterations based on running average
-	minIterations := 10
-	minDuration := (3 * time.Second).Microseconds()
-	if (singleRuntime.Microseconds() * int64(minIterations)) > minDuration {
-		return minIterations
+	if (singleRuntime.Microseconds() * int64( MinIterations)) > MinDuration {
+		return MinIterations 
 	} else {
-		runs := int(float64(minDuration) / float64(singleRuntime.Microseconds()))
-		return runs
+		runs := int(float64(MinDuration) / float64(singleRuntime.Microseconds()))
+		return min(runs, MaxIterations)
 	}
 }
 
@@ -354,7 +359,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				processErr.handle()
 				return nil, 0, true
 			}
-			
+
 			if opts.executeCleanupCmd {
 				cleanupDuration, e = RunCommand(&cleanupRunOpts)
 				if errors.As(e, &processErr) {
@@ -433,6 +438,8 @@ func main() {
 		SetShortDescription("Benchmark a command for given number of iterations.").
 		SetDescription("Benchmark a command for given number of iterations.").
 		AddArgument("commands...", "The command to run for benchmarking.", "").
+		AddFlag("min,m", "Minimum number of runs to perform.", commando.Int, MinIterations).
+		AddFlag("max,M", "Maximum number of runs to perform.", commando.Int, MaxIterations).
 		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, -1).
 		AddFlag("warmup,w", "The number of warmup runs to perform.", commando.Int, 0).
 		AddFlag("prepare,p", "The command to execute once before every run.", commando.String, dummyDefault).
@@ -454,6 +461,20 @@ func main() {
 			iterations, e := flags["iterations"].GetInt()
 			if e != nil {
 				internal.Log("red", "The number of iterations must be an integer!")
+				internal.Log("white", e.Error())
+				return
+			}
+
+			MinIterations, e = flags["min"].GetInt()
+			if e != nil {
+				internal.Log("red", "The number of minimum iterations must be an integer!")
+				internal.Log("white", e.Error())
+				return
+			}
+
+			MaxIterations, e = flags["max"].GetInt()
+			if e != nil {
+				internal.Log("red", "The number of maximum iterations must be an integer!")
 				internal.Log("white", e.Error())
 				return
 			}
@@ -582,7 +603,7 @@ func main() {
 				runs, _, failed := Benchmark(calibrationOpts)
 				if failed {
 					return
-				} 
+				}
 				shellAvg := internal.CalculateAverage(runs)
 				shellCalibration = internal.DurationFromNumber(shellAvg, time.Microsecond)
 			}
