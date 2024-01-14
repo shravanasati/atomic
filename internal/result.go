@@ -8,11 +8,11 @@ type SpeedResult struct {
 }
 
 // PrintableResult struct which is shown at the end as benchmarking summary and is written to a file.
-// Other numerical quantities except iterations are represented as strings because they are
+// Other numerical quantities except runs are represented as strings because they are
 // durations, and time.Duration offers a .String() method.
 type PrintableResult struct {
 	Command           string // Command is different from OriginalCommand such that it doesn't include shell prefixes etc.
-	Iterations        int
+	Runs              int
 	Average           string
 	StandardDeviation string
 	Min               string

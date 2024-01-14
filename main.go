@@ -39,7 +39,7 @@ const (
 
 type BenchmarkOptions struct {
 	command           []string
-	iterations        int
+	runs              int
 	verbose           bool
 	ignoreError       bool
 	executePrepareCmd bool
@@ -195,22 +195,22 @@ func RunCommand(runOpts *RunOptions) (time.Duration, error) {
 	return duration, nil
 }
 
-var MinIterations = 10
-var MaxIterations = math.MaxInt64
+var MinRuns = 10
+var MaxRuns = math.MaxInt64
 var MinDuration = (3 * time.Second).Microseconds()
 
-// Determine the number of iterations from a single run duration. This happens by meeting both
+// Determine the number of runs from a single run duration. This happens by meeting both
 // of these criteria:
-// 1. Minimum number of iterations to be performed: 10
+// 1. Minimum number of runs to be performed: 10
 // 2. Minimum duration the benchmark should last: 3s
-func determineIterations(singleRuntime time.Duration) int {
+func determineRuns(singleRuntime time.Duration) int {
 	// todo add min and max runs
-	// todo adjust iterations based on running average
-	if (singleRuntime.Microseconds() * int64( MinIterations)) > MinDuration {
-		return MinIterations 
+	// todo adjust runs based on running average
+	if (singleRuntime.Microseconds() * int64(MinRuns)) > MinDuration {
+		return MinRuns
 	} else {
 		runs := int(float64(MinDuration) / float64(singleRuntime.Microseconds()))
-		return min(runs, MaxIterations)
+		return min(runs, MaxRuns)
 	}
 }
 
@@ -218,7 +218,7 @@ func determineIterations(singleRuntime time.Duration) int {
 // microseconds as well as the number of runs performed and whether the Benchmark was successfull.
 func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 	// actual runs, each entry stored in microseconds
-	var runs []int64
+	var runsData []int64
 	wordMap := map[benchmarkMode]string{
 		shellMode:  "shell",
 		warmupMode: "warmup",
@@ -251,7 +251,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 	}
 	// todo refactor this code to eliminate code repetition
 
-	// * looping for given iterations
+	// * looping for given runs
 	if opts.verbose {
 		word, ok := wordMap[opts.mode]
 		if !ok {
@@ -260,7 +260,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 		}
 		var e error
 		startI := 1
-		if opts.iterations < 0 {
+		if opts.runs < 0 {
 			var prepareDuration, cleanupDuration time.Duration
 			if opts.executePrepareCmd {
 				prepareDuration, e = RunCommand(&prepareRunOpts)
@@ -282,11 +282,11 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 					return nil, 0, true
 				}
 			}
-			opts.iterations = determineIterations(singleRuntime + prepareDuration + cleanupDuration)
+			opts.runs = determineRuns(singleRuntime + prepareDuration + cleanupDuration)
 			singleRuntime -= opts.shellCalibration
-			runs = append(runs, singleRuntime.Microseconds())
+			runsData = append(runsData, singleRuntime.Microseconds())
 		}
-		for i := startI; i <= opts.iterations; i++ {
+		for i := startI; i <= opts.runs; i++ {
 			internal.Log("purple", fmt.Sprintf("***********\nRunning "+word+" %d\n***********", i))
 
 			// dont output prepare command execution
@@ -302,7 +302,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				processErr.handle()
 				return nil, 0, true
 			}
-			runs = append(runs, (dur - opts.shellCalibration).Microseconds())
+			runsData = append(runsData, (dur - opts.shellCalibration).Microseconds())
 
 			if opts.executeCleanupCmd {
 				_, e := RunCommand(&cleanupRunOpts)
@@ -333,7 +333,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 		if NO_COLOR {
 			pbarOptions = append(pbarOptions, progressbar.OptionEnableColorCodes(true))
 		}
-		barMax := opts.iterations
+		barMax := opts.runs
 		if barMax < 0 {
 			barMax = 1
 		}
@@ -344,8 +344,8 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 		startI := 1
 		var prepareDuration, cleanupDuration time.Duration
 
-		// automatically determine iterations
-		if opts.iterations < 0 {
+		// automatically determine runs
+		if opts.runs < 0 {
 			startI = 2
 			if opts.executePrepareCmd {
 				prepareDuration, e = RunCommand(&prepareRunOpts)
@@ -367,14 +367,14 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 					return nil, 0, true
 				}
 			}
-			opts.iterations = determineIterations(singleRuntime + prepareDuration + cleanupDuration)
+			opts.runs = determineRuns(singleRuntime + prepareDuration + cleanupDuration)
 			singleRuntime -= opts.shellCalibration
 			bar.Reset()
-			bar.ChangeMax(opts.iterations)
+			bar.ChangeMax(opts.runs)
 			bar.Add(1)
-			runs = append(runs, singleRuntime.Microseconds())
+			runsData = append(runsData, singleRuntime.Microseconds())
 		}
-		for i := startI; i <= opts.iterations; i++ {
+		for i := startI; i <= opts.runs; i++ {
 			// run the prepareCmd first
 			// dont ignore errors in prepare command execution, dont output it either
 			if opts.executePrepareCmd {
@@ -390,13 +390,13 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 				processErr.handle()
 				return nil, 0, true
 			}
-			runs = append(runs, (dur - opts.shellCalibration).Microseconds())
+			runsData = append(runsData, (dur - opts.shellCalibration).Microseconds())
 
 			if opts.mode == mainMode {
 				bar.Describe(
 					fmt.Sprintf("[magenta]Current estimate: [green]%s[reset]",
 						internal.DurationFromNumber(
-							internal.CalculateAverage(runs), time.Microsecond).String(),
+							internal.CalculateAverage(runsData), time.Microsecond).String(),
 					),
 				)
 			}
@@ -410,7 +410,7 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 			}
 		}
 	}
-	return runs, opts.iterations, false
+	return runsData, opts.runs, false
 }
 
 func main() {
@@ -435,12 +435,12 @@ func main() {
 	// * root command
 	commando.
 		Register(nil).
-		SetShortDescription("Benchmark a command for given number of iterations.").
-		SetDescription("Benchmark a command for given number of iterations.").
+		SetShortDescription("Benchmark a command for given number of runs.").
+		SetDescription("Benchmark a command for given number of runs.").
 		AddArgument("commands...", "The command to run for benchmarking.", "").
-		AddFlag("min,m", "Minimum number of runs to perform.", commando.Int, MinIterations).
-		AddFlag("max,M", "Maximum number of runs to perform.", commando.Int, MaxIterations).
-		AddFlag("iterations,i", "The number of iterations to perform", commando.Int, -1).
+		AddFlag("min,m", "Minimum number of runs to perform.", commando.Int, MinRuns).
+		AddFlag("max,M", "Maximum number of runs to perform.", commando.Int, MaxRuns).
+		AddFlag("runs,r", "The number of runs to perform", commando.Int, -1).
 		AddFlag("warmup,w", "The number of warmup runs to perform.", commando.Int, 0).
 		AddFlag("prepare,p", "The command to execute once before every run.", commando.String, dummyDefault).
 		AddFlag("cleanup,c", "The command to execute once after every run.", commando.String, dummyDefault).
@@ -458,30 +458,30 @@ func main() {
 				internal.Log("red", "error: not enough arguments.")
 				return
 			}
-			iterations, e := flags["iterations"].GetInt()
+			runs, e := flags["runs"].GetInt()
 			if e != nil {
-				internal.Log("red", "The number of iterations must be an integer!")
+				internal.Log("red", "The number of runs must be an integer!")
 				internal.Log("white", e.Error())
 				return
 			}
 
-			MinIterations, e = flags["min"].GetInt()
+			MinRuns, e = flags["min"].GetInt()
 			if e != nil {
-				internal.Log("red", "The number of minimum iterations must be an integer!")
+				internal.Log("red", "The number of minimum runs must be an integer!")
 				internal.Log("white", e.Error())
 				return
 			}
 
-			MaxIterations, e = flags["max"].GetInt()
+			MaxRuns, e = flags["max"].GetInt()
 			if e != nil {
-				internal.Log("red", "The number of maximum iterations must be an integer!")
+				internal.Log("red", "The number of maximum runs must be an integer!")
 				internal.Log("white", e.Error())
 				return
 			}
 
 			warmupRuns, e := flags["warmup"].GetInt()
 			if e != nil {
-				internal.Log("red", "The number of iterations must be an integer!")
+				internal.Log("red", "The number of runs must be an integer!")
 				internal.Log("white", e.Error())
 				return
 			}
@@ -589,7 +589,7 @@ func main() {
 				}
 				calibrationOpts := BenchmarkOptions{
 					command:           shellEmptyCommand,
-					iterations:        -1,
+					runs:              -1,
 					verbose:           false,
 					ignoreError:       true,
 					executePrepareCmd: false,
@@ -630,7 +630,7 @@ func main() {
 
 				warmupOpts := BenchmarkOptions{
 					command:           command,
-					iterations:        warmupRuns,
+					runs:              warmupRuns,
 					verbose:           verbose,
 					ignoreError:       ignoreError,
 					prepareCmd:        prepareCmd,
@@ -649,29 +649,29 @@ func main() {
 				}
 
 				benchmarkOpts := warmupOpts
-				benchmarkOpts.iterations = iterations
+				benchmarkOpts.runs = runs
 				benchmarkOpts.mode = mainMode
 
-				runs, iterations, shouldSkip := Benchmark(benchmarkOpts)
+				runsData, nRuns, shouldSkip := Benchmark(benchmarkOpts)
 				if shouldSkip {
 					continue
 				}
-				if len(runs) != iterations {
-					panic(fmt.Sprintf("mismatch between len(runs)=%d and iterations=%d", len(runs), iterations))
+				if len(runsData) != nRuns {
+					panic(fmt.Sprintf("mismatch between len(runs)=%d and runs=%d", len(runsData), runs))
 				}
 
 				// * intialising the template struct
-				avg := internal.CalculateAverage(runs)
+				avg := internal.CalculateAverage(runsData)
 				if avg < 0 {
 					internal.Log("red", "shell calibration is yielding inaccurate results")
 					internal.Log("yellow", "Try executing the command without the -s/--shell flag.")
 					continue
 				}
-				stddev := internal.CalculateStandardDeviation(runs, avg)
+				stddev := internal.CalculateStandardDeviation(runsData, avg)
 				avgDuration := internal.DurationFromNumber(avg, time.Microsecond)
 				stddevDuration := internal.DurationFromNumber(stddev, time.Microsecond)
-				max_ := slices.Max(runs)
-				min_ := slices.Min(runs)
+				max_ := slices.Max(runsData)
+				min_ := slices.Min(runsData)
 				maxDuration := internal.DurationFromNumber(max_, time.Microsecond)
 				minDuration := internal.DurationFromNumber(min_, time.Microsecond)
 				speedResult := internal.SpeedResult{
@@ -681,7 +681,7 @@ func main() {
 				}
 				printableResult := internal.PrintableResult{
 					Command:           strings.Join(command, " "),
-					Iterations:        iterations,
+					Runs:              nRuns,
 					Average:           avgDuration.String(),
 					StandardDeviation: stddevDuration.String(),
 					Max:               maxDuration.String(),
@@ -690,7 +690,7 @@ func main() {
 				speedResults = append(speedResults, speedResult)
 				fmt.Print(printableResult.String())
 
-				outliersDetected := internal.TestOutliers(runs)
+				outliersDetected := internal.TestOutliers(runsData)
 				if outliersDetected {
 					internal.Log("yellow", "\nWarning: Statistical outliers were detected. Consider re-running this benchmark on a quiet system, devoid of any interferences from other programs.")
 					if warmupRuns == 0 {

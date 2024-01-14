@@ -12,14 +12,14 @@ import (
 
 var summaryNoColor = `
 Executed Command:   {{ .Command }} 
-Total iterations:   {{ .Iterations }} 
+Total runs:   {{ .Runs }} 
 Average time taken: {{ .Average }} ± {{ .StandardDeviation }}
 Range:              {{ .Min }} ... {{ .Max }}
 `
 
 var summaryColor = `
 ${yellow}Executed Command:   ${green}{{ .Command }} ${reset}
-${yellow}Total iterations:   ${green}{{ .Iterations }} ${reset}
+${yellow}Total runs:   ${green}{{ .Runs }} ${reset}
 ${yellow}Average time taken: ${green}{{ .Average }} ± {{ .StandardDeviation }} ${reset}
 ${yellow}Range:              ${green}{{ .Min }} ... {{ .Max }} ${reset}
 `
@@ -81,7 +81,7 @@ func markdownify(r *PrintableResult) {
 | Fields             | Values          					       |
 | -----------        | -----------     						   |
 | Executed Command   | {{.Command}}   						   |
-| Total iterations   | {{.Iterations}} 						   |
+| Total runs   | {{.Runs}} 						   |
 | Average time taken | {{.Average}} ± {{ .StandardDeviation }} |
 | Range				 | {{.Min}} ... {{ .Max }}   			   |
 `
@@ -116,8 +116,8 @@ func jsonify(r *PrintableResult) ([]byte, error) {
 // csvify converts the Result struct to CSV.
 func csvify(r *PrintableResult) {
 	text := `
-Executed Command,Total iterations,Average time taken,Range
-{{.Command}}, {{.Iterations}}, {{.Average}} ± {{ .StandardDeviation }}, {{.Min}} ... {{.Max}}
+Executed Command,Total runs,Average time taken,Range
+{{.Command}}, {{.Runs}}, {{.Average}} ± {{ .StandardDeviation }}, {{.Min}} ... {{.Max}}
 `
 	tmpl, err := template.New("summary").Parse(text)
 	if err != nil {

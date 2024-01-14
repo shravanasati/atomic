@@ -15,7 +15,7 @@
 - Benchmarks programs easily with just one command, no extra code needed
 - Export the results in markdown, json and text formats
 - Universal support, you can benchmark any shell command 
-- Choose the number of iterations to perform
+- Choose the number of runs to perform
 - Detailed benchmark summary at the end
 - Fast and reliable
 
@@ -73,12 +73,12 @@ This section shows how you can use *atomic*.
 You can benchmark anything with atomic, python programs, executables, shell commands or anything. To benchmark with atomic, simply execute:
 
 ```
-atomic <command> [iterations]
+atomic <command> [runs]
 ```
 
 The `command` argument is the command to execute for benchmarking, like `python3 file` or `./executable`.
 
-The `iterations` argument defaults to 10, if not provided.
+The `runs` argument defaults to 10, if not provided.
 
 Example:
 ```
