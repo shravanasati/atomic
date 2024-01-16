@@ -46,7 +46,7 @@ type BenchmarkOptions struct {
 	prepareCmd        []string
 	executeCleanupCmd bool
 	cleanupCmd        []string
-	shellCalibration  time.Duration
+	shellCalibration  *RunResult
 	mode              benchmarkMode
 	timeout           time.Duration
 }
@@ -159,10 +159,17 @@ type RunOptions struct {
 	timeout     time.Duration
 }
 
+type RunResult struct {
+	elapsed time.Duration
+	user    time.Duration
+	system  time.Duration
+	err     error
+}
+
 // runs the built command using os/exec and returns the duration the command lasted
-func RunCommand(runOpts *RunOptions) (time.Duration, error) {
-	// todo refactor to use runresponse and benchmark-response
+func RunCommand(runOpts *RunOptions) *RunResult {
 	var cmd *exec.Cmd
+	var runResult *RunResult
 	ctx, cancel := context.WithTimeout(context.Background(), runOpts.timeout)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, runOpts.command[0], runOpts.command[1:]...)
@@ -174,26 +181,30 @@ func RunCommand(runOpts *RunOptions) (time.Duration, error) {
 
 	var e error
 	if e = cmd.Start(); e != nil {
-		return 0, &failedProcessError{command: runOpts.command, err: e, where: "starting"}
+		runResult.err = &failedProcessError{command: runOpts.command, err: e, where: "starting"}
 	}
 	init := time.Now()
 	e = cmd.Wait()
 	duration := time.Since(init)
 
-	// todo use user time and system time too
-	// cmd.ProcessState
-
 	if e != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			return 0, &failedProcessError{command: runOpts.command, err: context.DeadlineExceeded, where: "execution"}
+			runResult.err = &failedProcessError{command: runOpts.command, err: context.DeadlineExceeded, where: "execution"}
 		}
 		if !runOpts.ignoreError {
-			return 0, &failedProcessError{command: runOpts.command, err: e, where: "execution"}
+			runResult.err = &failedProcessError{command: runOpts.command, err: e, where: "execution"}
 		}
 	}
 
-	return duration, nil
+	runResult.elapsed = duration
+	runResult.user = cmd.ProcessState.UserTime()
+	runResult.system = cmd.ProcessState.SystemTime()
+
+	return runResult
 }
+
+// todo add graphing support
+// todo --time-unit/-u flag for exports
 
 var MinRuns = 10
 var MaxRuns = math.MaxInt64
@@ -204,7 +215,6 @@ var MinDuration = (3 * time.Second).Microseconds()
 // 1. Minimum number of runs to be performed: 10
 // 2. Minimum duration the benchmark should last: 3s
 func determineRuns(singleRuntime time.Duration) int {
-	// todo add min and max runs
 	// todo adjust runs based on running average
 	if (singleRuntime.Microseconds() * int64(MinRuns)) > MinDuration {
 		return MinRuns
@@ -214,11 +224,12 @@ func determineRuns(singleRuntime time.Duration) int {
 	}
 }
 
+
 // Benchmark runs the given command as per the given opts and returns a slice of durations in
-// microseconds as well as the number of runs performed and whether the Benchmark was successfull.
-func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
+// microseconds as well as the number of runs performed and whether the Benchmark was NOT successfull.
+func Benchmark(opts BenchmarkOptions) ([]*RunResult, bool) {
 	// actual runs, each entry stored in microseconds
-	var runsData []int64
+	var runsData []*RunResult
 	wordMap := map[benchmarkMode]string{
 		shellMode:  "shell",
 		warmupMode: "warmup",
@@ -258,57 +269,61 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 			// used internally, ok to panic
 			panic(fmt.Sprintf("invalid mode passed to benchmark: %v", opts.mode))
 		}
-		var e error
 		startI := 1
 		if opts.runs < 0 {
-			var prepareDuration, cleanupDuration time.Duration
+			var prepareResult, cleanupResult *RunResult
 			if opts.executePrepareCmd {
-				prepareDuration, e = RunCommand(&prepareRunOpts)
-				if errors.As(e, &processErr) {
+				prepareResult = RunCommand(&prepareRunOpts)
+				if errors.As(prepareResult.err, &processErr) {
 					processErr.handle()
-					return nil, 0, true
+					return nil, true
 				}
 			}
 			startI = 2
-			singleRuntime, e := RunCommand(&runOpts)
-			if errors.As(e, &processErr) {
+			singleRunResult := RunCommand(&runOpts)
+			if errors.As(singleRunResult.err, &processErr) {
 				processErr.handle()
-				return nil, 0, true
+				return nil, true
 			}
 			if opts.executeCleanupCmd {
-				cleanupDuration, e = RunCommand(&cleanupRunOpts)
-				if errors.As(e, &processErr) {
+				cleanupResult = RunCommand(&cleanupRunOpts)
+				if errors.As(cleanupResult.err, &processErr) {
 					processErr.handle()
-					return nil, 0, true
+					return nil, true
 				}
 			}
-			opts.runs = determineRuns(singleRuntime + prepareDuration + cleanupDuration)
-			singleRuntime -= opts.shellCalibration
-			runsData = append(runsData, singleRuntime.Microseconds())
+			opts.runs = determineRuns(singleRunResult.elapsed + prepareResult.elapsed + cleanupResult.elapsed)
+			singleRunResult.elapsed -= opts.shellCalibration.elapsed
+			singleRunResult.user -= opts.shellCalibration.user
+			singleRunResult.system -= opts.shellCalibration.system
+			runsData = append(runsData, singleRunResult)
 		}
 		for i := startI; i <= opts.runs; i++ {
 			internal.Log("purple", fmt.Sprintf("***********\nRunning "+word+" %d\n***********", i))
 
 			// dont output prepare command execution
 			if opts.executePrepareCmd {
-				_, e := RunCommand(&prepareRunOpts)
-				if errors.As(e, &processErr) {
+				prepareResult := RunCommand(&prepareRunOpts)
+				if errors.As(prepareResult.err, &processErr) {
 					processErr.handle()
-					return nil, 0, true
+					return nil, true
 				}
 			}
-			dur, e := RunCommand(&runOpts)
-			if errors.As(e, &processErr) {
+			runResult := RunCommand(&runOpts)
+			if errors.As(runResult.err, &processErr) {
 				processErr.handle()
-				return nil, 0, true
+				return nil, true
 			}
-			runsData = append(runsData, (dur - opts.shellCalibration).Microseconds())
+			runResult.elapsed -= opts.shellCalibration.elapsed
+			runResult.user -= opts.shellCalibration.user
+			runResult.system -= opts.shellCalibration.system
+			runsData = append(runsData, runResult)
 
 			if opts.executeCleanupCmd {
-				_, e := RunCommand(&cleanupRunOpts)
-				if errors.As(e, &processErr) {
+				cleanupResult := RunCommand(&cleanupRunOpts)
+				if errors.As(cleanupResult.err, &processErr) {
 					processErr.handle()
-					return nil, 0, true
+					return nil, true
 				}
 			}
 		}
@@ -340,57 +355,61 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 		bar := progressbar.NewOptions(
 			barMax, pbarOptions...,
 		)
-		var e error
 		startI := 1
-		var prepareDuration, cleanupDuration time.Duration
+		var prepareResult, cleanupResult *RunResult
 
 		// automatically determine runs
 		if opts.runs < 0 {
 			startI = 2
 			if opts.executePrepareCmd {
-				prepareDuration, e = RunCommand(&prepareRunOpts)
-				if errors.As(e, &processErr) {
+				prepareResult = RunCommand(&prepareRunOpts)
+				if errors.As(prepareResult.err, &processErr) {
 					processErr.handle()
-					return nil, 0, true
+					return nil, true
 				}
 			}
-			singleRuntime, e := RunCommand(&runOpts)
-			if errors.As(e, &processErr) {
+			singleRunResult := RunCommand(&runOpts)
+			if errors.As(singleRunResult.err, &processErr) {
 				processErr.handle()
-				return nil, 0, true
+				return nil, true
 			}
 
 			if opts.executeCleanupCmd {
-				cleanupDuration, e = RunCommand(&cleanupRunOpts)
-				if errors.As(e, &processErr) {
+				cleanupResult = RunCommand(&cleanupRunOpts)
+				if errors.As(cleanupResult.err, &processErr) {
 					processErr.handle()
-					return nil, 0, true
+					return nil, true
 				}
 			}
-			opts.runs = determineRuns(singleRuntime + prepareDuration + cleanupDuration)
-			singleRuntime -= opts.shellCalibration
+			opts.runs = determineRuns(singleRunResult.elapsed + prepareResult.elapsed + cleanupResult.elapsed)
+			singleRunResult.elapsed -= opts.shellCalibration.elapsed
+			singleRunResult.user -= opts.shellCalibration.user
+			singleRunResult.system -= opts.shellCalibration.system
 			bar.Reset()
 			bar.ChangeMax(opts.runs)
 			bar.Add(1)
-			runsData = append(runsData, singleRuntime.Microseconds())
+			runsData = append(runsData, singleRunResult)
 		}
 		for i := startI; i <= opts.runs; i++ {
 			// run the prepareCmd first
 			// dont ignore errors in prepare command execution, dont output it either
 			if opts.executePrepareCmd {
-				_, e = RunCommand(&prepareRunOpts)
-				if errors.As(e, &processErr) {
+				prepareResult = RunCommand(&prepareRunOpts)
+				if errors.As(prepareResult.err, &processErr) {
 					processErr.handle()
-					return nil, 0, true
+					return nil, true
 				}
 			}
-			dur, e := RunCommand(&runOpts)
-			if errors.As(e, &processErr) {
+			runResult := RunCommand(&runOpts)
+			if errors.As(runResult.err, &processErr) {
 				bar.Clear()
 				processErr.handle()
-				return nil, 0, true
+				return nil, true
 			}
-			runsData = append(runsData, (dur - opts.shellCalibration).Microseconds())
+			runResult.elapsed -= opts.shellCalibration.elapsed
+			runResult.user -= opts.shellCalibration.user
+			runResult.system -= opts.shellCalibration.system
+			runsData = append(runsData, runResult)
 
 			if opts.mode == mainMode {
 				bar.Describe(
@@ -402,15 +421,15 @@ func Benchmark(opts BenchmarkOptions) ([]int64, int, bool) {
 			}
 			bar.Add(1)
 			if opts.executeCleanupCmd {
-				_, e := RunCommand(&cleanupRunOpts)
-				if errors.As(e, &processErr) {
+				cleanupResult := RunCommand(&cleanupRunOpts)
+				if errors.As(cleanupResult.err, &processErr) {
 					processErr.handle()
-					return nil, 0, true
+					return nil, true
 				}
 			}
 		}
 	}
-	return runsData, opts.runs, false
+	return runsData, false
 }
 
 func main() {
@@ -579,7 +598,7 @@ func main() {
 				return
 			}
 
-			var shellCalibration time.Duration
+			var shellCalibration *RunResult
 			if useShell {
 				shellEmptyCommand, err := buildCommand("''", true, shellPath)
 				if err != nil {
@@ -598,7 +617,7 @@ func main() {
 					cleanupCmd:        []string{},
 					mode:              shellMode,
 					timeout:           LargestDuration,
-					shellCalibration:  shellCalibration,
+					shellCalibration:  &RunResult{},
 				}
 				runs, _, failed := Benchmark(calibrationOpts)
 				if failed {

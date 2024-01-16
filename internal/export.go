@@ -12,14 +12,14 @@ import (
 
 var summaryNoColor = `
 Executed Command:   {{ .Command }} 
-Total runs:   {{ .Runs }} 
+Total runs:         {{ .Runs }} 
 Average time taken: {{ .Average }} ± {{ .StandardDeviation }}
 Range:              {{ .Min }} ... {{ .Max }}
 `
 
 var summaryColor = `
 ${yellow}Executed Command:   ${green}{{ .Command }} ${reset}
-${yellow}Total runs:   ${green}{{ .Runs }} ${reset}
+${yellow}Total runs:         ${green}{{ .Runs }} ${reset}
 ${yellow}Average time taken: ${green}{{ .Average }} ± {{ .StandardDeviation }} ${reset}
 ${yellow}Range:              ${green}{{ .Min }} ... {{ .Max }} ${reset}
 `
