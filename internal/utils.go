@@ -20,7 +20,7 @@ func format(text string, params map[string]string) string {
 }
 
 // MapFunc returns a slice of all elements in the given slice mapped by the given function.
-func MapFunc[T any, S any, Ss ~[]S, Ts ~[]T](function func(T) S, slice Ts) Ss {
+func MapFunc[Ts ~[]T, Ss ~[]S, T, S any](function func(T) S, slice Ts) Ss {
 	mappedSlice := make(Ss, len(slice))
 	for i, v := range slice {
 		mappedSlice[i] = function(v)
@@ -92,6 +92,10 @@ func readFile(file string) string {
 	}
 
 	return text
+}
+
+type numberLike interface {
+	~int | ~float64 | ~int32 | ~int64 | ~float32
 }
 
 func DurationFromNumber[T numberLike](number T, unit time.Duration) time.Duration {

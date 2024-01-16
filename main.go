@@ -29,28 +29,6 @@ const (
 	VERSION = "v0.4.0"
 )
 
-type benchmarkMode int
-
-const (
-	shellMode  benchmarkMode = 0
-	warmupMode benchmarkMode = 1
-	mainMode   benchmarkMode = 2
-)
-
-type BenchmarkOptions struct {
-	command           []string
-	runs              int
-	verbose           bool
-	ignoreError       bool
-	executePrepareCmd bool
-	prepareCmd        []string
-	executeCleanupCmd bool
-	cleanupCmd        []string
-	shellCalibration  *RunResult
-	mode              benchmarkMode
-	timeout           time.Duration
-}
-
 // NO_COLOR is a global variable that is used to determine whether or not to enable color output.
 var NO_COLOR bool = false
 
@@ -169,7 +147,12 @@ type RunResult struct {
 // runs the built command using os/exec and returns the duration the command lasted
 func RunCommand(runOpts *RunOptions) *RunResult {
 	var cmd *exec.Cmd
-	var runResult *RunResult
+	runResult := &RunResult{
+		elapsed: 0,
+		user:    0,
+		system:  0,
+		err:     nil,
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), runOpts.timeout)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, runOpts.command[0], runOpts.command[1:]...)
@@ -224,6 +207,27 @@ func determineRuns(singleRuntime time.Duration) int {
 	}
 }
 
+type benchmarkMode int
+
+const (
+	shellMode  benchmarkMode = 0
+	warmupMode benchmarkMode = 1
+	mainMode   benchmarkMode = 2
+)
+
+type BenchmarkOptions struct {
+	command           []string
+	runs              int
+	verbose           bool
+	ignoreError       bool
+	executePrepareCmd bool
+	prepareCmd        []string
+	executeCleanupCmd bool
+	cleanupCmd        []string
+	shellCalibration  *RunResult
+	mode              benchmarkMode
+	timeout           time.Duration
+}
 
 // Benchmark runs the given command as per the given opts and returns a slice of durations in
 // microseconds as well as the number of runs performed and whether the Benchmark was NOT successfull.
@@ -415,7 +419,10 @@ func Benchmark(opts BenchmarkOptions) ([]*RunResult, bool) {
 				bar.Describe(
 					fmt.Sprintf("[magenta]Current estimate: [green]%s[reset]",
 						internal.DurationFromNumber(
-							internal.CalculateAverage(runsData), time.Microsecond).String(),
+							internal.CalculateAverage(
+								internal.MapFunc[[]*RunResult, []float64](func(r *RunResult) float64 { return float64(r.elapsed.Microseconds()) },
+									runsData[:]),
+							), time.Microsecond).String(),
 					),
 				)
 			}
@@ -619,12 +626,21 @@ func main() {
 					timeout:           LargestDuration,
 					shellCalibration:  &RunResult{},
 				}
-				runs, _, failed := Benchmark(calibrationOpts)
+				runs, failed := Benchmark(calibrationOpts)
 				if failed {
 					return
 				}
-				shellAvg := internal.CalculateAverage(runs)
-				shellCalibration = internal.DurationFromNumber(shellAvg, time.Microsecond)
+				shellElapsedAvg := internal.CalculateAverage(internal.MapFunc[[]*RunResult, []float64](func(r *RunResult) float64 { return float64(r.elapsed.Microseconds()) }, runs))
+				shellUserAvg := internal.CalculateAverage(internal.MapFunc[[]*RunResult, []float64](func(r *RunResult) float64 { return float64(r.user.Microseconds()) }, runs))
+				shellSystemAvg := internal.CalculateAverage(internal.MapFunc[[]*RunResult, []float64](func(r *RunResult) float64 { return float64(r.system.Microseconds()) }, runs))
+				shellElapsedAvgDuration := internal.DurationFromNumber(shellElapsedAvg, time.Microsecond)
+				shellUserAvgDuration := internal.DurationFromNumber(shellUserAvg, time.Microsecond)
+				shellSystemAvgDuration := internal.DurationFromNumber(shellSystemAvg, time.Microsecond)
+				shellCalibration = &RunResult{
+					elapsed: shellElapsedAvgDuration,
+					user:    shellUserAvgDuration,
+					system:  shellSystemAvgDuration,
+				}
 			}
 			// fmt.Println(shellCalibration)
 
@@ -662,7 +678,7 @@ func main() {
 				}
 
 				// no need for runs in warmups
-				_, _, shouldSkip := Benchmark(warmupOpts)
+				_, shouldSkip := Benchmark(warmupOpts)
 				if shouldSkip {
 					continue
 				}
@@ -671,37 +687,43 @@ func main() {
 				benchmarkOpts.runs = runs
 				benchmarkOpts.mode = mainMode
 
-				runsData, nRuns, shouldSkip := Benchmark(benchmarkOpts)
+				runsData, shouldSkip := Benchmark(benchmarkOpts)
 				if shouldSkip {
 					continue
 				}
-				if len(runsData) != nRuns {
-					panic(fmt.Sprintf("mismatch between len(runs)=%d and runs=%d", len(runsData), runs))
-				}
+				elapsedTimes := internal.MapFunc[[]*RunResult, []float64](func(rr *RunResult) float64 { return float64(rr.elapsed.Microseconds()) }, runsData)
+				userTimes := internal.MapFunc[[]*RunResult, []float64](func(rr *RunResult) float64 { return float64(rr.user.Microseconds()) }, runsData)
+				systemTimes := internal.MapFunc[[]*RunResult, []float64](func(rr *RunResult) float64 { return float64(rr.system.Microseconds()) }, runsData)
 
 				// * intialising the template struct
-				avg := internal.CalculateAverage(runsData)
-				if avg < 0 {
+				avgElapsed := internal.CalculateAverage(elapsedTimes)
+				avgUser := internal.CalculateAverage(userTimes)
+				avgSystem := internal.CalculateAverage(systemTimes)
+				if avgElapsed < 0 {
 					internal.Log("red", "shell calibration is yielding inaccurate results")
 					internal.Log("yellow", "Try executing the command without the -s/--shell flag.")
 					continue
 				}
-				stddev := internal.CalculateStandardDeviation(runsData, avg)
-				avgDuration := internal.DurationFromNumber(avg, time.Microsecond)
+				stddev := internal.CalculateStandardDeviation(elapsedTimes, avgElapsed)
+				avgElapsedDuration := internal.DurationFromNumber(avgElapsed, time.Microsecond)
+				avgUserDuration := internal.DurationFromNumber(avgUser, time.Microsecond)
+				avgSystemDuration := internal.DurationFromNumber(avgSystem, time.Microsecond)
 				stddevDuration := internal.DurationFromNumber(stddev, time.Microsecond)
-				max_ := slices.Max(runsData)
-				min_ := slices.Min(runsData)
+				max_ := slices.Max(elapsedTimes)
+				min_ := slices.Min(elapsedTimes)
 				maxDuration := internal.DurationFromNumber(max_, time.Microsecond)
 				minDuration := internal.DurationFromNumber(min_, time.Microsecond)
 				speedResult := internal.SpeedResult{
 					Command:           commandString,
-					Average:           avg,
+					Average:           avgElapsed,
 					StandardDeviation: stddev,
 				}
 				printableResult := internal.PrintableResult{
 					Command:           strings.Join(command, " "),
-					Runs:              nRuns,
-					Average:           avgDuration.String(),
+					Runs:              len(runsData),
+					AverageElapsed:    avgElapsedDuration.String(),
+					AverageUser:       avgUserDuration.String(),
+					AverageSystem:     avgSystemDuration.String(),
 					StandardDeviation: stddevDuration.String(),
 					Max:               maxDuration.String(),
 					Min:               minDuration.String(),
@@ -709,7 +731,7 @@ func main() {
 				speedResults = append(speedResults, speedResult)
 				fmt.Print(printableResult.String())
 
-				outliersDetected := internal.TestOutliers(runsData)
+				outliersDetected := internal.TestOutliers(elapsedTimes)
 				if outliersDetected {
 					internal.Log("yellow", "\nWarning: Statistical outliers were detected. Consider re-running this benchmark on a quiet system, devoid of any interferences from other programs.")
 					if warmupRuns == 0 {
@@ -720,7 +742,7 @@ func main() {
 				}
 
 				// min is in microseconds
-				if min_ < (5 * time.Millisecond).Microseconds() {
+				if min_ < float64((5 * time.Millisecond).Microseconds()) {
 					internal.Log("yellow", "\nWarning: The command took less than 5ms to execute, the results might be inaccurate.")
 					if useShell {
 						internal.Log("yellow", "Try running the command without the -s/--shell flag.")

@@ -13,7 +13,9 @@ type SpeedResult struct {
 type PrintableResult struct {
 	Command           string // Command is different from OriginalCommand such that it doesn't include shell prefixes etc.
 	Runs              int
-	Average           string
+	AverageElapsed    string
+	AverageUser       string
+	AverageSystem     string
 	StandardDeviation string
 	Min               string
 	Max               string

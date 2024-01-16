@@ -14,24 +14,20 @@ const zSCORE_THRESHOLD = 14.826
 // can be modified by the outlier-threshold flag
 var OUTLIER_THRESHOLD = 0.0
 
-type numberLike interface {
-	~int | ~float64 | ~int32 | ~int64 | ~float32
-}
-
-func CalculateAverage[T numberLike](data []T) float64 {
+func CalculateAverage(data []float64) float64 {
 	var sum float64
 	for _, v := range data {
-		sum += float64(v)
+		sum += v
 	}
 	return sum / float64(len(data))
 }
 
 // Computes the standard deviation of the given data.
-func CalculateStandardDeviation[T numberLike](data []T, avg float64) float64 {
+func CalculateStandardDeviation(data []float64, avg float64) float64 {
 	var deviationSum float64 = 0
 	n := float64(len(data))
 	for _, v := range data {
-		deviationSum += math.Pow((float64(v) - avg), 2)
+		deviationSum += math.Pow(v-avg, 2)
 	}
 	deviationSum /= n
 	deviationSum = math.Sqrt(deviationSum)
@@ -72,13 +68,8 @@ func calculateMAD(data []float64, median float64) float64 {
 }
 
 // Returns true if there are any statistical outliers in the data.
-func TestOutliers[T numberLike](data []T) bool {
-	zScores := calculateModifiedZScore(
-		MapFunc[T, float64, []float64, []T](
-			func(x T) float64 { return float64(x) },
-			data,
-		),
-	)
+func TestOutliers(data []float64) bool {
+	zScores := calculateModifiedZScore(data)
 	nOutliers := float64(len(
 		FilterFunc(
 			func(z float64) bool { return z > zSCORE_THRESHOLD },
@@ -86,7 +77,7 @@ func TestOutliers[T numberLike](data []T) bool {
 		),
 	))
 	totalDataPoints := float64(len(data))
-	
+
 	return (nOutliers / totalDataPoints * 100) > OUTLIER_THRESHOLD
 }
 

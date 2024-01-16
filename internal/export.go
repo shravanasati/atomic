@@ -13,14 +13,14 @@ import (
 var summaryNoColor = `
 Executed Command:   {{ .Command }} 
 Total runs:         {{ .Runs }} 
-Average time taken: {{ .Average }} ± {{ .StandardDeviation }}
+Average time taken: {{ .AverageElapsed }} ± {{ .StandardDeviation }} [User: {{ .AverageUser }}, System: {{ .AverageSystem }}]
 Range:              {{ .Min }} ... {{ .Max }}
 `
 
 var summaryColor = `
 ${yellow}Executed Command:   ${green}{{ .Command }} ${reset}
 ${yellow}Total runs:         ${green}{{ .Runs }} ${reset}
-${yellow}Average time taken: ${green}{{ .Average }} ± {{ .StandardDeviation }} ${reset}
+${yellow}Average time taken: ${green}{{ .AverageElapsed }} ± {{ .StandardDeviation }} ${reset} [User: ${blue}{{ .AverageUser }}${reset}, System: {$blue}{{ .AverageSystem }}{$reset}]
 ${yellow}Range:              ${green}{{ .Min }} ... {{ .Max }} ${reset}
 `
 
@@ -28,7 +28,7 @@ ${yellow}Range:              ${green}{{ .Min }} ... {{ .Max }} ${reset}
 func (result *PrintableResult) String() string {
 	// * result text
 	text := format(summaryColor,
-		map[string]string{"blue": CYAN, "yellow": YELLOW, "green": GREEN, "reset": RESET})
+		map[string]string{"blue": BLUE, "yellow": YELLOW, "green": GREEN, "cyan": CYAN,"reset": RESET})
 
 	if NO_COLOR {
 		text = summaryNoColor
