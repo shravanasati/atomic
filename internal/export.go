@@ -2,10 +2,13 @@ package internal
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
+	"time"
 )
 
 // todo in all exports, include individual run details
@@ -27,11 +30,13 @@ ${yellow}Range:              ${green}{{ .Min }} ... {{ .Max }} ${reset}
 // Consolify prints the benchmark summary of the Result struct to the console, with color codes.
 func (result *PrintableResult) String() string {
 	// * result text
-	text := format(summaryColor,
-		map[string]string{"blue": BLUE, "yellow": YELLOW, "green": GREEN, "cyan": CYAN,"reset": RESET})
+	var text string
 
 	if NO_COLOR {
 		text = summaryNoColor
+	} else {
+		text = format(summaryColor,
+			map[string]string{"blue": BLUE, "yellow": YELLOW, "green": GREEN, "cyan": CYAN, "reset": RESET})
 	}
 
 	var bobTheBuilder strings.Builder
@@ -179,5 +184,19 @@ func (result *PrintableResult) Export(exportFormats string) {
 		}
 
 	}
+
+}
+
+func VerifyExportFormats(formats string) error {
+	validFormats := []string{"csv", "md", "txt", "json"}
+	formatList := strings.Split(strings.ToLower(formats), ",")
+	for _, f := range formatList {
+		if !slices.Contains(validFormats, f) {
+			return fmt.Errorf("invalid export format: %s", f)
+		}
+	}
+	return nil
+}
+func Export(formats string, unit time.Duration) {
 
 }

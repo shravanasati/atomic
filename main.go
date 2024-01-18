@@ -29,32 +29,21 @@ const (
 	VERSION = "v0.4.0"
 )
 
-// NO_COLOR is a global variable that is used to determine whether or not to enable color output.
-var NO_COLOR bool = false
+// NoColor is a global variable that is used to determine whether to enable color output.
+var NoColor = false
 
-// Tells if the current system is windows.
+// WINDOWS tells if the current system is windows.
 var WINDOWS = runtime.GOOS == "windows"
-
-// returns true if powershell is available on the system
-func _testPowershell() bool {
-	cmd := exec.Command("powershell", "-h")
-	err := cmd.Start()
-	if err != nil {
-		return false
-	}
-	err = cmd.Wait()
-	return err == nil
-}
 
 // this value is used in cases of flags default values
 // because empty default values in commando marks the flag as required
 const dummyDefault = "~!_default_!~"
 
-// used as default value for the timeout flag,
+// LargestDurationString used as default value for the timeout flag,
 // borrowed from [time.Duration.String]
-const LARGEST_DURATION_STRING = "2540400h10m10.000000000s"
+const LargestDurationString = "2540400h10m10.000000000s"
 
-var LargestDuration, _ = time.ParseDuration(LARGEST_DURATION_STRING)
+var LargestDuration, _ = time.ParseDuration(LargestDurationString)
 
 // returns the default shell path (pwsh/cmd on windows, /bin/sh on unix based systems) and an error.
 func getDefaultShell() (string, error) {
@@ -97,7 +86,7 @@ func buildCommand(command string, useShell bool, shellPath string) ([]string, er
 	var err error
 	if useShell {
 		// the flag that enables execution of command from a string
-		// eg. -Command or -c on pwsh, /c on cmd.exe, -c on any other shell
+		// e.g. -Command or -c on pwsh, /c on cmd.exe, -c on any other shell
 		var commandSwitch string
 		if strings.Contains(shellPath, "cmd.exe") || strings.Contains(shellPath, "cmd") {
 			commandSwitch = "/c"
@@ -123,19 +112,19 @@ func (fpe *failedProcessError) Error() string {
 
 func (fpe *failedProcessError) handle() {
 	internal.Log("red", fpe.Error())
-	if fpe.err == context.DeadlineExceeded {
+	if errors.Is(fpe.err, context.DeadlineExceeded) {
 		internal.Log("yellow", "This happened due to the -t/--timeout flag. Consider increasing the timeout duration for successfull execution of the command.")
 		return
 	}
 	internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -V/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
 }
 
-// RunOptions represents options accepted by [RunCommand]. 
-// `command` is a slice of string representing a (shlex-) splitted command to execute.
+// RunOptions represents options accepted by [RunCommand].
+// `command` is a slice of string representing a (shlex-) split command to execute.
 // `verbose` is a bool value indicating whether [os/exec.Cmd.Stdout] should be redirected to [os.Stdout].
 // `ignoreError` is a bool value indicating whether any errors in the starting or waiting procedure
 // should be ignored.
-// `timeout` is used in the [context.WithTimeout] function, and the resulting context is used in 
+// `timeout` is used in the [context.WithTimeout] function, and the resulting context is used in
 // [os/exec.CommandContext].
 type RunOptions struct {
 	command     []string
@@ -145,7 +134,7 @@ type RunOptions struct {
 }
 
 // RunResult represents a result returned by [RunCommand].
-// `elapsed` is total elapsed duration spent waiting for the process. 
+// `elapsed` is total elapsed duration spent waiting for the process.
 // `user` and `system` are both retrieved from [os/exec.Cmd.ProcessState].
 // `err` is of type [failedProcessError].
 type RunResult struct {
@@ -159,9 +148,9 @@ type RunResult struct {
 func emptyRunResult() *RunResult {
 	return &RunResult{
 		elapsed: 0,
-		user: 0,
-		system: 0,
-		err: nil,
+		user:    0,
+		system:  0,
+		err:     nil,
 	}
 }
 
@@ -188,7 +177,7 @@ func RunCommand(runOpts *RunOptions) *RunResult {
 	duration := time.Since(init)
 
 	if e != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			runResult.err = &failedProcessError{command: runOpts.command, err: context.DeadlineExceeded, where: "execution"}
 			return runResult
 		}
@@ -206,7 +195,6 @@ func RunCommand(runOpts *RunOptions) *RunResult {
 }
 
 // todo add graphing support
-// todo --time-unit/-u flag for exports
 
 var MinRuns = 10
 var MaxRuns = math.MaxInt64
@@ -234,22 +222,22 @@ const (
 	mainMode   benchmarkMode = 2
 )
 
-// Represents benchmarking options accepted by [Benchmark].
-// 
-// `command` is a slice of string representing a (shlex-) splitted command to execute.
+// BenchmarkOptions represents benchmarking options accepted by [Benchmark].
+//
+// `command` is a slice of string representing a (shlex-) split command to execute.
 // `verbose` is a bool value indicating whether [os/exec.Cmd.Stdout] should be redirected to [os.Stdout].
 // `ignoreError` is a bool value indicating whether any errors in the starting or waiting procedure
 // should be ignored.
-// `timeout` is used in the [context.WithTimeout] function, and the resulting context is used in 
+// `timeout` is used in the [context.WithTimeout] function, and the resulting context is used in
 // [os/exec.CommandContext].
 // All these above parameters are passed to [RunCommand] in form of [RunOptions].
-// 
+//
 // `executePrepareCmd` is a bool value indicating whether to execute prepare commands.
-// `prepareCmd` is similar to `command` except it's used to execute prepare command if `executePrepareCmd` is set to true. 
-// 
+// `prepareCmd` is similar to `command` except it's used to execute prepare command if `executePrepareCmd` is set to true.
+//
 // `executeCleanupCmd` is a bool value indicating whether to execute cleanup commands.
-// `cleanupCmd` is similar to `command` except it's used to execute cleanup command if `executeCleanupCmd` is set to true. 
-// 
+// `cleanupCmd` is similar to `command` except it's used to execute cleanup command if `executeCleanupCmd` is set to true.
+//
 // `shellCalibration` is a *[RunResult] and is substracted from every run duration, `elapsed`, `user` and `system`.
 // `mode` is a [benchmarkMode] and must be one of `shellMode`, `warmupMode` and `mainMode`. These different modes are used for progress bar descriptions and such.
 type BenchmarkOptions struct {
@@ -267,7 +255,7 @@ type BenchmarkOptions struct {
 }
 
 // Benchmark runs the given command as per the given opts and returns a slice of durations in
-// microseconds as well as the number of runs performed and whether the Benchmark was NOT successfull.
+// microseconds as well as the number of runs performed and whether the Benchmark was NOT successful.
 func Benchmark(opts BenchmarkOptions) ([]*RunResult, bool) {
 	// actual runs, each entry stored in microseconds
 	var runsData []*RunResult
@@ -387,7 +375,7 @@ func Benchmark(opts BenchmarkOptions) ([]*RunResult, bool) {
 				BarEnd:        "|",
 			}),
 		}
-		if NO_COLOR {
+		if NoColor {
 			pbarOptions = append(pbarOptions, progressbar.OptionEnableColorCodes(true))
 		}
 		barMax := opts.runs
@@ -512,10 +500,11 @@ func main() {
 		AddFlag("ignore-error,I", "Ignore if the process returns a non-zero return code", commando.Bool, false).
 		AddFlag("shell,s", "Whether to use shell to execute the given command.", commando.Bool, false).
 		AddFlag("shell-path", "Path to the shell to use.", commando.String, defaultShellValue).
-		AddFlag("timeout,t", "The timeout for a single command.", commando.String, LARGEST_DURATION_STRING).
+		AddFlag("timeout,t", "The timeout for a single command.", commando.String, LargestDurationString).
 		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
+		AddFlag("time-unit,u", "The time unit to use for exported results. Must be one of ns, us, ms, s, m, h.", commando.String, "ms").
 		AddFlag("outlier-threshold", "Minimum number of runs to be outliers for the outlier warning to be displayed, in percentage.", commando.String, "0").
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 			// * getting args and flag values
@@ -558,12 +547,12 @@ func main() {
 			}
 
 			// todo NO_COLOR functionality is broken due to colorstring
-			NO_COLOR, e = (flags["color"].GetBool())
+			NoColor, e = flags["color"].GetBool()
 			if e != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
 				return
 			}
-			internal.NO_COLOR = !NO_COLOR
+			internal.NO_COLOR = !NoColor
 
 			outlierThresholdString, e := flags["outlier-threshold"].GetString()
 			if e != nil {
@@ -641,6 +630,29 @@ func main() {
 			if err != nil {
 				internal.Log("red", "unable to parse timeout: "+timeoutString)
 				internal.Log("red", "error: ")
+				return
+			}
+
+			timeUnitString, err := flags["time-unit"].GetString()
+			if err != nil {
+				internal.Log("red", "Application error: cannot parse flag values.")
+				return
+			}
+			timeUnit, err := internal.ParseTimeUnit(timeUnitString)
+			if err != nil {
+				internal.Log("red", "invalid time unit: "+timeUnitString)
+				return
+			}
+
+			// * getting export values
+			exportFormats, err := flags["export"].GetString()
+			if err != nil {
+				internal.Log("red", "Application error: cannot parse flag values.")
+				return
+			}
+			err = internal.VerifyExportFormats(exportFormats)
+			if err != nil && exportFormats != "none" {
+				internal.Log("red", err.Error())
 				return
 			}
 
@@ -799,14 +811,8 @@ func main() {
 
 			internal.RelativeSummary(speedResults)
 
-			// // * getting export values
-			// exportFormats, ierr := flags["export"].GetString()
-			// if ierr != nil {
-			// 	internal.Log("red", "Application error: cannot parse flag values.")
-			// 	return
-			// }
-			// // todo export all results
-			// result.Export(exportFormats)
+			// todo export all results
+			internal.Export(exportFormats, timeUnit)
 
 		})
 

@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"time"
 )
+
+var ErrInvalidTimeUnit = errors.New("invalid time unit: ")
 
 // formats the text in a javascript like syntax.
 func format(text string, params map[string]string) string {
@@ -120,4 +123,23 @@ func DurationFromNumber[T numberLike](number T, unit time.Duration) time.Duratio
 		panic("unable to parse duration: " + timeString + " in DurationFromNumber \n" + err.Error())
 	}
 	return duration.Round(time.Microsecond)
+}
+
+func ParseTimeUnit(unitString string) (time.Duration, error) {
+	switch strings.TrimSpace(strings.ToLower(unitString)) {
+	case "ns":
+		return time.Nanosecond, nil
+	case "us", "µs":
+		return time.Microsecond, nil
+	case "ms":
+		return time.Millisecond, nil
+	case "s":
+		return time.Second, nil
+	case "m":
+		return time.Minute, nil
+	case "h":
+		return time.Hour, nil
+	default:
+		return 0, ErrInvalidTimeUnit
+	}
 }
