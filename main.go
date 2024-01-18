@@ -130,6 +130,13 @@ func (fpe *failedProcessError) handle() {
 	internal.Log("yellow", "You should consider using -I/--ignore-error flag to ignore failures in the command execution. Alternatively, you can also try the -V/--verbose flag to show the output of the command. If the command is actually a shell function, use -s/--shell flag to execute it via a shell.")
 }
 
+// RunOptions represents options accepted by [RunCommand]. 
+// `command` is a slice of string representing a (shlex-) splitted command to execute.
+// `verbose` is a bool value indicating whether [os/exec.Cmd.Stdout] should be redirected to [os.Stdout].
+// `ignoreError` is a bool value indicating whether any errors in the starting or waiting procedure
+// should be ignored.
+// `timeout` is used in the [context.WithTimeout] function, and the resulting context is used in 
+// [os/exec.CommandContext].
 type RunOptions struct {
 	command     []string
 	verbose     bool
@@ -137,6 +144,10 @@ type RunOptions struct {
 	timeout     time.Duration
 }
 
+// RunResult represents a result returned by [RunCommand].
+// `elapsed` is total elapsed duration spent waiting for the process. 
+// `user` and `system` are both retrieved from [os/exec.Cmd.ProcessState].
+// `err` is of type [failedProcessError].
 type RunResult struct {
 	elapsed time.Duration
 	user    time.Duration
@@ -144,6 +155,7 @@ type RunResult struct {
 	err     error
 }
 
+// Returns an empty [RunResult].
 func emptyRunResult() *RunResult {
 	return &RunResult{
 		elapsed: 0,
@@ -153,7 +165,7 @@ func emptyRunResult() *RunResult {
 	}
 }
 
-// runs the built command using os/exec and returns the duration the command lasted
+// runs the built command using os/exec and returns a RunResult
 func RunCommand(runOpts *RunOptions) *RunResult {
 	var cmd *exec.Cmd
 	runResult := emptyRunResult()
@@ -219,6 +231,24 @@ const (
 	mainMode   benchmarkMode = 2
 )
 
+// Represents benchmarking options accepted by [Benchmark].
+// 
+// `command` is a slice of string representing a (shlex-) splitted command to execute.
+// `verbose` is a bool value indicating whether [os/exec.Cmd.Stdout] should be redirected to [os.Stdout].
+// `ignoreError` is a bool value indicating whether any errors in the starting or waiting procedure
+// should be ignored.
+// `timeout` is used in the [context.WithTimeout] function, and the resulting context is used in 
+// [os/exec.CommandContext].
+// All these above parameters are passed to [RunCommand] in form of [RunOptions].
+// 
+// `executePrepareCmd` is a bool value indicating whether to execute prepare commands.
+// `prepareCmd` is similar to `command` except it's used to execute prepare command if `executePrepareCmd` is set to true. 
+// 
+// `executeCleanupCmd` is a bool value indicating whether to execute cleanup commands.
+// `cleanupCmd` is similar to `command` except it's used to execute cleanup command if `executeCleanupCmd` is set to true. 
+// 
+// `shellCalibration` is a *[RunResult] and is substracted from every run duration, `elapsed`, `user` and `system`.
+// `mode` is a [benchmarkMode] and must be one of `shellMode`, `warmupMode` and `mainMode`. These different modes are used for progress bar descriptions and such.
 type BenchmarkOptions struct {
 	command           []string
 	runs              int
