@@ -179,10 +179,10 @@ func RunCommand(runOpts *RunOptions) *RunResult {
 	}
 
 	var e error
+	init := time.Now()
 	if e = cmd.Start(); e != nil {
 		runResult.err = &failedProcessError{command: runOpts.command, err: e, where: "starting"}
 	}
-	init := time.Now()
 	e = cmd.Wait()
 	duration := time.Since(init)
 
