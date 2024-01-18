@@ -182,6 +182,7 @@ func RunCommand(runOpts *RunOptions) *RunResult {
 	init := time.Now()
 	if e = cmd.Start(); e != nil {
 		runResult.err = &failedProcessError{command: runOpts.command, err: e, where: "starting"}
+		return runResult
 	}
 	e = cmd.Wait()
 	duration := time.Since(init)
@@ -189,9 +190,11 @@ func RunCommand(runOpts *RunOptions) *RunResult {
 	if e != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			runResult.err = &failedProcessError{command: runOpts.command, err: context.DeadlineExceeded, where: "execution"}
+			return runResult
 		}
 		if !runOpts.ignoreError {
 			runResult.err = &failedProcessError{command: runOpts.command, err: e, where: "execution"}
+			return runResult
 		}
 	}
 
