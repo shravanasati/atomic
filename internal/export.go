@@ -20,7 +20,7 @@ Range:              {{ .Min }} ... {{ .Max }}
 var summaryColor = `
 ${yellow}Executed Command:   ${green}{{ .Command }} ${reset}
 ${yellow}Total runs:         ${green}{{ .Runs }} ${reset}
-${yellow}Average time taken: ${green}{{ .AverageElapsed }} ± {{ .StandardDeviation }} ${reset} [User: ${blue}{{ .AverageUser }}${reset}, System: {$blue}{{ .AverageSystem }}{$reset}]
+${yellow}Average time taken: ${green}{{ .AverageElapsed }} ± {{ .StandardDeviation }} ${reset} [User: ${blue}{{ .AverageUser }}${reset}, System: ${blue}{{ .AverageSystem }}${reset}]
 ${yellow}Range:              ${green}{{ .Min }} ... {{ .Max }} ${reset}
 `
 

@@ -144,15 +144,19 @@ type RunResult struct {
 	err     error
 }
 
+func emptyRunResult() *RunResult {
+	return &RunResult{
+		elapsed: 0,
+		user: 0,
+		system: 0,
+		err: nil,
+	}
+}
+
 // runs the built command using os/exec and returns the duration the command lasted
 func RunCommand(runOpts *RunOptions) *RunResult {
 	var cmd *exec.Cmd
-	runResult := &RunResult{
-		elapsed: 0,
-		user:    0,
-		system:  0,
-		err:     nil,
-	}
+	runResult := emptyRunResult()
 	ctx, cancel := context.WithTimeout(context.Background(), runOpts.timeout)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, runOpts.command[0], runOpts.command[1:]...)
@@ -275,7 +279,8 @@ func Benchmark(opts BenchmarkOptions) ([]*RunResult, bool) {
 		}
 		startI := 1
 		if opts.runs < 0 {
-			var prepareResult, cleanupResult *RunResult
+			prepareResult := emptyRunResult()
+			cleanupResult := emptyRunResult()
 			if opts.executePrepareCmd {
 				prepareResult = RunCommand(&prepareRunOpts)
 				if errors.As(prepareResult.err, &processErr) {
@@ -360,7 +365,8 @@ func Benchmark(opts BenchmarkOptions) ([]*RunResult, bool) {
 			barMax, pbarOptions...,
 		)
 		startI := 1
-		var prepareResult, cleanupResult *RunResult
+		prepareResult := emptyRunResult()
+		cleanupResult := emptyRunResult()
 
 		// automatically determine runs
 		if opts.runs < 0 {
@@ -605,7 +611,7 @@ func main() {
 				return
 			}
 
-			var shellCalibration *RunResult
+			var shellCalibration = emptyRunResult()
 			if useShell {
 				shellEmptyCommand, err := buildCommand("''", true, shellPath)
 				if err != nil {
@@ -624,7 +630,7 @@ func main() {
 					cleanupCmd:        []string{},
 					mode:              shellMode,
 					timeout:           LargestDuration,
-					shellCalibration:  &RunResult{},
+					shellCalibration:  emptyRunResult(),
 				}
 				runs, failed := Benchmark(calibrationOpts)
 				if failed {
@@ -653,7 +659,7 @@ func main() {
 					panic(err)
 				}
 				// ! don't remove this println: for some weird reason the above colorstring.Printf
-				// doesnt' work without this
+				// ! doesnt' work without this
 				fmt.Println()
 
 				command, err := buildCommand(commandString, useShell, shellPath)
