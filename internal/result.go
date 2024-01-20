@@ -1,10 +1,19 @@
 package internal
 
-// Contains all the numerical quantities (in microseconds) for relative speed comparison.
+import "time"
+
+// Contains all the numerical quantities (in microseconds) for relative speed comparison. Also used for export.
 type SpeedResult struct {
 	Command           string
-	Average           float64
+	AverageElapsed    float64
+	AverageUser       float64
+	AverageSystem     float64
 	StandardDeviation float64
+	Max               float64
+	Min               float64
+	Times             []float64
+	RelativeMean      float64
+	RelativeStddev    float64
 }
 
 // PrintableResult struct which is shown at the end as benchmarking summary and is written to a file.
@@ -21,8 +30,25 @@ type PrintableResult struct {
 	Max               string
 }
 
+func NewPrintableResult() *PrintableResult {
+	var pr PrintableResult
+	return &pr
+}
+
+func (pr *PrintableResult) FromSpeedResult(sr SpeedResult) *PrintableResult {
+	pr.Command = sr.Command
+	pr.Runs = len(sr.Times)
+	pr.AverageElapsed = DurationFromNumber(sr.AverageElapsed, time.Microsecond).String()
+	pr.AverageUser = DurationFromNumber(sr.AverageUser, time.Microsecond).String()
+	pr.AverageSystem = DurationFromNumber(sr.AverageSystem, time.Microsecond).String()
+	pr.StandardDeviation = DurationFromNumber(sr.StandardDeviation, time.Microsecond).String()
+	pr.Max = DurationFromNumber(sr.Max, time.Microsecond).String()
+	pr.Min = DurationFromNumber(sr.Min, time.Microsecond).String()
+	return pr
+}
+
 // Implements [sort.Interface] for []Result based on the Average field.
-type ByAverage []SpeedResult
+type ByAverage []*SpeedResult
 
 func (a ByAverage) Len() int {
 	return len(a)
@@ -33,5 +59,5 @@ func (a ByAverage) Swap(i, j int) {
 }
 
 func (a ByAverage) Less(i, j int) bool {
-	return a[i].Average < a[j].Average
+	return a[i].AverageElapsed < a[j].AverageElapsed
 }

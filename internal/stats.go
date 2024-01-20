@@ -81,21 +81,25 @@ func TestOutliers(data []float64) bool {
 	return (nOutliers / totalDataPoints * 100) > OUTLIER_THRESHOLD
 }
 
-// todo represent this in a struct for export
-func RelativeSummary(results []SpeedResult) {
+// Prints the relative summary and also sets the RelativeMean and RelativeStddev of each [SpeedResult].
+func RelativeSummary(results []*SpeedResult) {
 	if len(results) <= 1 {
 		return
 	}
 	sort.Sort(ByAverage(results))
 	fastest := results[0]
+	fastest.RelativeMean = 1.00
+	fastest.RelativeStddev = 0.00
 	colorstring.Println("[bold][white]Summary")
 	colorstring.Printf("  [cyan]%s[reset] ran \n", fastest.Command)
 	for _, r := range results[1:] {
-		ratio := r.Average / fastest.Average
+		ratio := r.AverageElapsed / fastest.AverageElapsed
 		ratioStddev := ratio * math.Sqrt(
-			math.Pow(r.StandardDeviation/r.Average, 2)+
-				math.Pow(fastest.StandardDeviation/fastest.Average, 2),
+			math.Pow(r.StandardDeviation/r.AverageElapsed, 2)+
+				math.Pow(fastest.StandardDeviation/fastest.AverageElapsed, 2),
 		)
+		r.RelativeMean = ratio
+		r.RelativeMean = ratioStddev
 		colorstring.Printf("    [green]%.2f[reset] ± [light_green]%.2f[reset] times faster than [magenta]%s \n", ratio, ratioStddev, r.Command)
 	}
 }

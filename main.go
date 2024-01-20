@@ -645,13 +645,13 @@ func main() {
 			}
 
 			// * getting export values
-			exportFormats, err := flags["export"].GetString()
+			exportFormatString, err := flags["export"].GetString()
 			if err != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
 				return
 			}
-			err = internal.VerifyExportFormats(exportFormats)
-			if err != nil && exportFormats != "none" {
+			exportFormats, err := internal.VerifyExportFormats(exportFormatString)
+			if err != nil && exportFormatString != "none" {
 				internal.Log("red", err.Error())
 				return
 			}
@@ -695,7 +695,7 @@ func main() {
 			}
 			// fmt.Println(shellCalibration)
 
-			var speedResults []internal.SpeedResult
+			var speedResults []*internal.SpeedResult
 			// * benchmark each command given
 			givenCommands := strings.Split(args["commands"].Value, commando.VariadicSeparator)
 			nCommands := len(givenCommands)
@@ -756,29 +756,19 @@ func main() {
 					continue
 				}
 				stddev := internal.CalculateStandardDeviation(elapsedTimes, avgElapsed)
-				avgElapsedDuration := internal.DurationFromNumber(avgElapsed, time.Microsecond)
-				avgUserDuration := internal.DurationFromNumber(avgUser, time.Microsecond)
-				avgSystemDuration := internal.DurationFromNumber(avgSystem, time.Microsecond)
-				stddevDuration := internal.DurationFromNumber(stddev, time.Microsecond)
 				max_ := slices.Max(elapsedTimes)
 				min_ := slices.Min(elapsedTimes)
-				maxDuration := internal.DurationFromNumber(max_, time.Microsecond)
-				minDuration := internal.DurationFromNumber(min_, time.Microsecond)
-				speedResult := internal.SpeedResult{
+				speedResult := &internal.SpeedResult{
 					Command:           commandString,
-					Average:           avgElapsed,
+					AverageElapsed:    avgElapsed,
+					AverageUser:       avgUser,
+					AverageSystem:     avgSystem,
 					StandardDeviation: stddev,
+					Max:               max_,
+					Min:               min_,
+					Times:             elapsedTimes,
 				}
-				printableResult := internal.PrintableResult{
-					Command:           strings.Join(command, " "),
-					Runs:              len(runsData),
-					AverageElapsed:    avgElapsedDuration.String(),
-					AverageUser:       avgUserDuration.String(),
-					AverageSystem:     avgSystemDuration.String(),
-					StandardDeviation: stddevDuration.String(),
-					Max:               maxDuration.String(),
-					Min:               minDuration.String(),
-				}
+				printableResult := internal.NewPrintableResult().FromSpeedResult(*speedResult)
 				speedResults = append(speedResults, speedResult)
 				fmt.Print(printableResult.String())
 
@@ -811,8 +801,9 @@ func main() {
 
 			internal.RelativeSummary(speedResults)
 
-			// todo export all results
-			internal.Export(exportFormats, timeUnit)
+			if exportFormatString != "none" {
+				internal.Export(exportFormats, speedResults, timeUnit)
+			}
 
 		})
 

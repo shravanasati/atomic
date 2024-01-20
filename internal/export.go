@@ -7,11 +7,10 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 )
-
-// todo in all exports, include individual run details
 
 var summaryNoColor = `
 Executed Command:   {{ .Command }} 
@@ -53,64 +52,56 @@ func (result *PrintableResult) String() string {
 }
 
 // textify writes the benchmark summary of the Result struct to a text file.
-func textify(r *PrintableResult) {
-	text := summaryNoColor
-
-	tmpl, err := template.New("summary").Parse(text)
-	if err != nil {
-		panic(err)
-	}
+func textify(results []*PrintableResult) {
+	// temporarily turn off colors so that [PrintableResult.String] used non-colored summary
+	origVal := NO_COLOR
+	NO_COLOR = true
+	defer func() {
+		NO_COLOR = origVal
+	}()
 
 	f, ferr := os.Create("atomic-summary.txt")
 	if ferr != nil {
 		Log("red", "Failed to create the file.")
 	}
 	defer f.Close()
-	if terr := tmpl.Execute(f, r); terr != nil {
-		Log("red", "Failed to write to the file.")
-	} else {
-		absPath, err := filepath.Abs("atomic-summary.txt")
-		if err != nil {
-			Log("red", "unable to get the absolute path for text file: "+err.Error())
-		} else {
-			Log("green", "Successfully wrote benchmark summary to `"+absPath+"`.")
-		}
+
+	for _, r := range results {
+		f.WriteString(r.String() + "\n")
 	}
 
+	absPath, err := filepath.Abs("atomic-summary.txt")
+	if err != nil {
+		Log("red", "unable to get the absolute path for text file: "+err.Error())
+		return
+	} else {
+		Log("green", "Successfully wrote benchmark summary to `"+absPath+"`.")
+	}
 }
 
-func markdownify(r *PrintableResult) {
+func markdownify(results []*SpeedResult) {
 	text := `
 # atomic-summary
 
-| Fields             | Values          					       |
-| -----------        | -----------     						   |
-| Executed Command   | {{.Command}}   						   |
-| Total runs   | {{.Runs}} 						   |
-| Average time taken | {{.Average}} ± {{ .StandardDeviation }} |
-| Range				 | {{.Min}} ... {{ .Max }}   			   |
+| Command | Runs | Average | User | System | Min | Max | Relative |
+| ------- | ---- | ------- | ---- | ------ | --- | --- | -------- |
 `
-	tmpl, err := template.New("summary").Parse(text)
-	if err != nil {
-		panic(err)
-	}
-
 	f, ferr := os.Create("atomic-summary.md")
 	if ferr != nil {
 		Log("red", "Failed to create the file.")
 	}
 	defer f.Close()
-	if terr := tmpl.Execute(f, r); terr != nil {
-		Log("red", "Failed to write to the file.")
-	} else {
-		absPath, err := filepath.Abs("atomic-summary.md")
-		if err != nil {
-			Log("red", "unable to get the absolute path for markdown file: "+err.Error())
-		} else {
-			Log("green", "Successfully wrote benchmark summary to `"+absPath+"`.")
-		}
+	
+	for _, r = range results {
+		text += fmt.Sprintf("")
 	}
 
+	absPath, err := filepath.Abs("atomic-summary.md")
+	if err != nil {
+		Log("red", "unable to get the absolute path for markdown file: "+err.Error())
+	} else {
+		Log("green", "Successfully wrote benchmark summary to `"+absPath+"`.")
+	}
 }
 
 // jsonify converts the Result struct to JSON.
@@ -187,16 +178,72 @@ func (result *PrintableResult) Export(exportFormats string) {
 
 }
 
-func VerifyExportFormats(formats string) error {
-	validFormats := []string{"csv", "md", "txt", "json"}
+func VerifyExportFormats(formats string) ([]string, error) {
+	validFormats := []string{"csv", "markdown", "txt", "json"}
 	formatList := strings.Split(strings.ToLower(formats), ",")
 	for _, f := range formatList {
 		if !slices.Contains(validFormats, f) {
-			return fmt.Errorf("invalid export format: %s", f)
+			return nil, fmt.Errorf("invalid export format: %s", f)
 		}
 	}
-	return nil
+	return formatList, nil
 }
-func Export(formats string, unit time.Duration) {
 
+func convertToTimeUnit(given float64, unit time.Duration) float64 {
+	// first get duration from microseconds
+	duration := DurationFromNumber(given, time.Microsecond)
+	switch unit {
+	case time.Nanosecond:
+		return float64(duration.Nanoseconds())
+	case time.Microsecond:
+		return float64(duration.Microseconds())
+	case time.Millisecond:
+		return float64(duration.Milliseconds())
+	case time.Second:
+		return duration.Seconds()
+	case time.Minute:
+		return duration.Minutes()
+	case time.Hour:
+		return duration.Hours()
+	default:
+		panic("convertToTimeUnit: unknown time unit: " + unit.String())
+	}
+}
+
+func Export(formats []string, results []*SpeedResult, timeUnit time.Duration) {
+	// first convert all speed results to the given time unit
+	// except for microseconds, because that's what used internally
+	if timeUnit != time.Microsecond {
+		var wg sync.WaitGroup
+		for _, sr := range results {
+			wg.Add(1)
+			go func(sr *SpeedResult) {
+				sr.AverageElapsed = convertToTimeUnit(sr.AverageElapsed, timeUnit)
+				sr.AverageUser = convertToTimeUnit(sr.AverageUser, timeUnit)
+				sr.AverageSystem = convertToTimeUnit(sr.AverageSystem, timeUnit)
+				sr.StandardDeviation = convertToTimeUnit(sr.StandardDeviation, timeUnit)
+				sr.Max = convertToTimeUnit(sr.Max, timeUnit)
+				sr.Min = convertToTimeUnit(sr.Min, timeUnit)
+				for i, t := range sr.Times {
+					sr.Times[i] = convertToTimeUnit(t, timeUnit)
+				}
+				wg.Done()
+			}(sr)
+		}
+		wg.Wait()
+	}
+
+	for _, format := range formats {
+		switch format {
+		case "json":
+			jsonify()
+		case "csv":
+			csvify()
+		case "markdown":
+			markdownify()
+		case "txt":
+			printables := MapFunc[[]*SpeedResult, []*PrintableResult](func(r *SpeedResult) *PrintableResult { return NewPrintableResult().FromSpeedResult(*r) }, results)
+			textify(printables)
+		}
+	}
 }
