@@ -92,8 +92,9 @@ func markdownify(results []*SpeedResult) {
 	}
 	defer f.Close()
 	
-	for _, r = range results {
-		text += fmt.Sprintf("")
+	for _, r := range results {
+		// todo add a row in the table
+		text += fmt.Sprintf("%v",r)
 	}
 
 	absPath, err := filepath.Abs("atomic-summary.md")
@@ -105,8 +106,8 @@ func markdownify(results []*SpeedResult) {
 }
 
 // jsonify converts the Result struct to JSON.
-func jsonify(r *PrintableResult) ([]byte, error) {
-	return json.MarshalIndent(r, "", "    ")
+func jsonify(data any) ([]byte, error) {
+	return json.MarshalIndent(data, "", "    ")
 }
 
 // csvify converts the Result struct to CSV.
@@ -137,47 +138,6 @@ Executed Command,Total runs,Average time taken,Range
 	}
 }
 
-// Export writes the benchmark summary of the Result struct to a file in the specified format.
-func (result *PrintableResult) Export(exportFormats string) {
-	// * exporting the results
-
-	for _, exportFormat := range strings.Split(exportFormats, ",") {
-		exportFormat = strings.ToLower(exportFormat)
-		if exportFormat == "json" {
-			jsonText, e := jsonify(result)
-			if e != nil {
-				Log("red", "Failed to export the results to json.")
-				return
-			}
-			e = writeToFile(string(jsonText), "atomic-summary.json")
-			if e == nil {
-				absPath, err := filepath.Abs("atomic-summary.json")
-				if err != nil {
-					Log("red", "unable to get the absolute path for json file: "+err.Error())
-				} else {
-					Log("green", "Successfully wrote benchmark summary to `"+absPath+"`.")
-				}
-			} else {
-				Log("red", "Unable to write to file ./atomic-summary.json: "+e.Error())
-			}
-
-		} else if exportFormat == "csv" {
-			csvify(result)
-
-		} else if exportFormat == "text" {
-			textify(result)
-
-		} else if exportFormat == "markdown" {
-			markdownify(result)
-
-		} else if exportFormat != "none" {
-			Log("red", "Invalid export format: "+exportFormat+".")
-		}
-
-	}
-
-}
-
 func VerifyExportFormats(formats string) ([]string, error) {
 	validFormats := []string{"csv", "markdown", "txt", "json"}
 	formatList := strings.Split(strings.ToLower(formats), ",")
@@ -198,7 +158,7 @@ func convertToTimeUnit(given float64, unit time.Duration) float64 {
 	case time.Microsecond:
 		return float64(duration.Microseconds())
 	case time.Millisecond:
-		return float64(duration.Milliseconds())
+		return float64(duration.Nanoseconds()) / float64(1e6)
 	case time.Second:
 		return duration.Seconds()
 	case time.Minute:
@@ -236,11 +196,16 @@ func Export(formats []string, results []*SpeedResult, timeUnit time.Duration) {
 	for _, format := range formats {
 		switch format {
 		case "json":
-			jsonify()
+			jsonMap := map[string]any{"time_unit": timeUnit.String()[1:], "result": results}
+			jsonData, err := jsonify(jsonMap)
+			if err != nil {
+				panic("unable to convert to json: " + err.Error())
+			}
+			writeToFile(string(jsonData), "./atomic-summary.json")
 		case "csv":
-			csvify()
+			// csvify()
 		case "markdown":
-			markdownify()
+			// markdownify()
 		case "txt":
 			printables := MapFunc[[]*SpeedResult, []*PrintableResult](func(r *SpeedResult) *PrintableResult { return NewPrintableResult().FromSpeedResult(*r) }, results)
 			textify(printables)

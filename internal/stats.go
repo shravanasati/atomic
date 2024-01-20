@@ -99,7 +99,7 @@ func RelativeSummary(results []*SpeedResult) {
 				math.Pow(fastest.StandardDeviation/fastest.AverageElapsed, 2),
 		)
 		r.RelativeMean = ratio
-		r.RelativeMean = ratioStddev
+		r.RelativeStddev = ratioStddev
 		colorstring.Printf("    [green]%.2f[reset] ± [light_green]%.2f[reset] times faster than [magenta]%s \n", ratio, ratioStddev, r.Command)
 	}
 }
