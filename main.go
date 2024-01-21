@@ -501,9 +501,10 @@ func main() {
 		AddFlag("shell,s", "Whether to use shell to execute the given command.", commando.Bool, false).
 		AddFlag("shell-path", "Path to the shell to use.", commando.String, defaultShellValue).
 		AddFlag("timeout,t", "The timeout for a single command.", commando.String, LargestDurationString).
-		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
 		AddFlag("verbose,V", "Enable verbose output.", commando.Bool, false).
 		AddFlag("no-color", "Disable colored output.", commando.Bool, false).
+		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
+		AddFlag("filename,f", "The filename to use in exports.", commando.String, "atomic-summary").
 		AddFlag("time-unit,u", "The time unit to use for exported results. Must be one of ns, us, ms, s, m, h.", commando.String, "ms").
 		AddFlag("outlier-threshold", "Minimum number of runs to be outliers for the outlier warning to be displayed, in percentage.", commando.String, "0").
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
@@ -641,6 +642,12 @@ func main() {
 			timeUnit, err := internal.ParseTimeUnit(timeUnitString)
 			if err != nil {
 				internal.Log("red", "invalid time unit: "+timeUnitString)
+				return
+			}
+
+			filename, err := flags["filename"].GetString()
+			if err != nil {
+				internal.Log("red", "Application error: cannot parse flag values.")
 				return
 			}
 
@@ -802,7 +809,8 @@ func main() {
 			internal.RelativeSummary(speedResults)
 
 			if exportFormatString != "none" {
-				internal.Export(exportFormats, speedResults, timeUnit)
+				fmt.Println()
+				internal.Export(exportFormats, filename, speedResults, timeUnit)
 			}
 
 		})

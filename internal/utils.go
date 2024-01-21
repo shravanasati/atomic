@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var ErrInvalidTimeUnit = errors.New("invalid time unit: ")
+var ErrInvalidTimeUnit = errors.New("invalid time unit")
 
 // formats the text in a javascript like syntax.
 func format(text string, params map[string]string) string {
