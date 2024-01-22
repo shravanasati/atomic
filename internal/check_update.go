@@ -85,7 +85,7 @@ func CheckForUpdates(currentVersion string, updateCh *chan string) {
 		return
 	}
 
-	url := "https://api.github.com/repos/Shravan-1908/atomic/releases/latest"
+	url := "https://api.github.com/repos/shravanasati/atomic/releases/latest"
 	releaseInfo := releaseInfo{}
 	resp, err := http.Get(url)
 	if err != nil {

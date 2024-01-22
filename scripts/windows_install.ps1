@@ -1,6 +1,6 @@
 Write-Host "Downloading atomic..."
 
-$url = "https://github.com/Shravan-1908/atomic/releases/latest/download/atomic-windows-amd64.exe"
+$url = "https://github.com/shravanasati/atomic/releases/latest/download/atomic-windows-amd64.exe"
 
 $dir = $env:USERPROFILE + "\.atomic"
 $filepath = $env:USERPROFILE + "\.atomic\atomic.exe"

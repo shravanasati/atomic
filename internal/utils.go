@@ -42,6 +42,15 @@ func FilterFunc[T any, Ts ~[]T](function func(T) bool, slice Ts) Ts {
 	return filtered
 }
 
+// ReduceFunc reduces the given slice to a single value by repeatedly applying the given function over the slice.
+// func ReduceFunc[S ~[]T, T any, O any](function func(T, T) O, slice S, initial O) T {
+// 	var accumulated O = initial
+// 	for _, v := range slice {
+// 		accumulated = function(accumulated, v)
+// 	}
+// 	return accumulated
+// }
+
 // writeToFile writes text string to the given filename.
 func writeToFile(text, filename string) (err error) {
 	f, err := os.Create(filename)

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Downloading atomic..."
-curl -L "https://github.com/Shravan-1908/atomic/releases/latest/download/atomic-linux-amd64" -o atomic
+curl -L "https://github.com/shravanasati/atomic/releases/latest/download/atomic-linux-amd64" -o atomic
 
 echo "Adding atomic into PATH..."
 

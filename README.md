@@ -1,6 +1,6 @@
 # atomic
 
-[![Continuous integration](https://github.com/Shravan-1908/atomic/actions/workflows/integrate.yml/badge.svg)](https://github.com/Shravan-1908/atomic/actions/workflows/integrate.yml)
+[![Continuous integration](https://github.com/shravanasati/atomic/actions/workflows/integrate.yml/badge.svg)](https://github.com/shravanasati/atomic/actions/workflows/integrate.yml)
 
 ![bench_demo](assets/demo.png)
 
@@ -28,7 +28,7 @@
 Execute the following command in bash:
 
 ```bash
-curl https://raw.githubusercontent.com/Shravan-1908/atomic/master/scripts/linux_install.sh > bench_install.sh
+curl https://raw.githubusercontent.com/shravanasati/atomic/master/scripts/linux_install.sh > bench_install.sh
 
 chmod +x ./bench_install.sh
 
@@ -41,7 +41,7 @@ bash ./bench_install.sh
 Execute the following command in bash:
 
 ```bash
-curl https://raw.githubusercontent.com/Shravan-1908/atomic/master/scripts/macos_install.sh > bench_install.sh
+curl https://raw.githubusercontent.com/shravanasati/atomic/master/scripts/macos_install.sh > bench_install.sh
 
 chmod +x ./bench_install.sh
 
@@ -52,7 +52,7 @@ bash ./bench_install.sh
 
 Open Powershell **as Admin** and execute the following command:
 ```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; (Invoke-WebRequest -Uri https://raw.githubusercontent.com/Shravan-1908/atomic/master/scripts/windows_install.ps1 -UseBasicParsing).Content | powershell -
+Set-ExecutionPolicy Bypass -Scope Process -Force; (Invoke-WebRequest -Uri https://raw.githubusercontent.com/shravanasati/atomic/master/scripts/windows_install.ps1 -UseBasicParsing).Content | powershell -
 ```
 
 To verify the installation of *atomic*, open a new shell and execute `atomic -v`. You should see output like this:

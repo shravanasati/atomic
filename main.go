@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Shravan-1908/atomic/internal"
-	"github.com/Shravan-1908/commando"
+	"github.com/shravanasati/atomic/internal"
+	"github.com/shravanasati/commando"
 	"github.com/google/shlex"
 	"github.com/mitchellh/colorstring"
 	"github.com/schollz/progressbar/v3"
@@ -205,7 +205,6 @@ var MinDuration = (3 * time.Second).Microseconds()
 // 1. Minimum number of runs to be performed: 10
 // 2. Minimum duration the benchmark should last: 3s
 func determineRuns(singleRuntime time.Duration) int {
-	// todo adjust runs based on running average
 	if (singleRuntime.Microseconds() * int64(MinRuns)) > MinDuration {
 		return MinRuns
 	} else {
@@ -390,7 +389,8 @@ func Benchmark(opts BenchmarkOptions) ([]*RunResult, bool) {
 		cleanupResult := emptyRunResult()
 
 		// automatically determine runs
-		if opts.runs < 0 {
+		autoRuns := opts.runs < 0
+		if autoRuns {
 			startI = 2
 			if opts.executePrepareCmd {
 				prepareResult = RunCommand(&prepareRunOpts)
@@ -455,7 +455,7 @@ func Benchmark(opts BenchmarkOptions) ([]*RunResult, bool) {
 			}
 			bar.Add(1)
 			if opts.executeCleanupCmd {
-				cleanupResult := RunCommand(&cleanupRunOpts)
+				cleanupResult = RunCommand(&cleanupRunOpts)
 				if errors.As(cleanupResult.err, &processErr) {
 					processErr.handle()
 					return nil, true
@@ -477,7 +477,7 @@ func main() {
 	commando.
 		SetExecutableName(NAME).
 		SetVersion(VERSION).
-		SetDescription("atomic is a simple CLI tool to benchmark commands. \nFor more info visit https://github.com/Shravan-1908/atomic.")
+		SetDescription("atomic is a simple CLI tool to benchmark commands. \nFor more info visit https://github.com/shravanasati/atomic.")
 
 	defaultShellValue, err := getDefaultShell()
 	if err != nil {
