@@ -367,8 +367,7 @@ func Benchmark(opts BenchmarkOptions) ([]*RunResult, bool) {
 			progressbar.OptionSetDescription("[magenta]" + description + "[reset]"),
 			progressbar.OptionSetPredictTime(true),
 			progressbar.OptionSetTheme(progressbar.Theme{
-				Saucer:        "[green]=[reset]",
-				SaucerHead:    "[green]>[reset]",
+				Saucer:        "[green]█[reset]",
 				SaucerPadding: " ",
 				BarStart:      "|",
 				BarEnd:        "|",
@@ -484,7 +483,6 @@ func main() {
 		defaultShellValue = dummyDefault
 	}
 
-	// todo track memory usage
 	// * root command
 	commando.
 		Register(nil).
@@ -812,6 +810,8 @@ func main() {
 				fmt.Println()
 				internal.Export(exportFormats, filename, speedResults, timeUnit)
 			}
+
+			internal.Histogram(speedResults, timeUnit.String()[1:])
 
 		})
 
