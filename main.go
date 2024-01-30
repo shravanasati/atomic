@@ -504,6 +504,7 @@ func main() {
 		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
 		AddFlag("filename,f", "The filename to use in exports.", commando.String, "atomic-summary").
 		AddFlag("time-unit,u", "The time unit to use for exported results. Must be one of ns, us, ms, s, m, h.", commando.String, "ms").
+		AddFlag("plot,p", "Comma separated list of plot types. Use all if you want to draw all the plots, or you can specify hist/histogram, box/boxplot, errorbar, bar, bubble.", commando.String, "none").
 		AddFlag("outlier-threshold", "Minimum number of runs to be outliers for the outlier warning to be displayed, in percentage.", commando.String, "0").
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 			// * getting args and flag values
@@ -661,6 +662,18 @@ func main() {
 				return
 			}
 
+			// * getting plot values
+			plotString, err := flags["plot"].GetString()
+			if err != nil {
+				internal.Log("red", "Application error: cannot parse flag values.")
+				return
+			}
+			plotFormats, err := internal.VerifyPlotFormats(plotString)
+			if err != nil && plotString != "none" {
+				internal.Log("red", err.Error())
+				return
+			}
+
 			var shellCalibration = emptyRunResult()
 			if useShell {
 				shellEmptyCommand, err := buildCommand("''", true, shellPath)
@@ -805,13 +818,21 @@ func main() {
 			}
 
 			internal.RelativeSummary(speedResults)
+			
+			// modify speedResults to convert values from microseconds to timeUnit
+			// if and only if either export or plotting needs to be done
+			if exportFormatString != "none" || plotString != "none" {
+				internal.ModifyTimeUnit(speedResults, timeUnit)
+			}
 
 			if exportFormatString != "none" {
 				fmt.Println()
 				internal.Export(exportFormats, filename, speedResults, timeUnit)
 			}
 
-			internal.Histogram(speedResults, timeUnit.String()[1:])
+			if plotString != "none" {
+				internal.Plot(plotFormats, speedResults, timeUnit)
+			}
 
 		})
 

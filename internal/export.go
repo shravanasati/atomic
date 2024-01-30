@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 )
@@ -143,57 +142,8 @@ func VerifyExportFormats(formats string) ([]string, error) {
 	return formatList, nil
 }
 
-func convertToTimeUnit(given float64, unit time.Duration) float64 {
-	// first get duration from microseconds
-	duration := DurationFromNumber(given, time.Microsecond)
-	switch unit {
-	case time.Nanosecond:
-		return float64(duration.Nanoseconds())
-	case time.Microsecond:
-		return float64(duration.Microseconds())
-	case time.Millisecond:
-		return float64(duration.Nanoseconds()) / float64(1e6)
-	case time.Second:
-		return duration.Seconds()
-	case time.Minute:
-		return duration.Minutes()
-	case time.Hour:
-		return duration.Hours()
-	default:
-		panic("convertToTimeUnit: unknown time unit: " + unit.String())
-	}
-}
-
-func addExtension(filename, ext string) string {
-	if !strings.HasSuffix(filename, "."+ext) {
-		return filename + "." + ext
-	}
-	return filename
-}
 
 func Export(formats []string, filename string, results []*SpeedResult, timeUnit time.Duration) {
-	// first convert all speed results to the given time unit
-	// except for microseconds, because that's what used internally
-	if timeUnit != time.Microsecond {
-		var wg sync.WaitGroup
-		for _, sr := range results {
-			wg.Add(1)
-			go func(sr *SpeedResult) {
-				sr.AverageElapsed = convertToTimeUnit(sr.AverageElapsed, timeUnit)
-				sr.AverageUser = convertToTimeUnit(sr.AverageUser, timeUnit)
-				sr.AverageSystem = convertToTimeUnit(sr.AverageSystem, timeUnit)
-				sr.StandardDeviation = convertToTimeUnit(sr.StandardDeviation, timeUnit)
-				sr.Max = convertToTimeUnit(sr.Max, timeUnit)
-				sr.Min = convertToTimeUnit(sr.Min, timeUnit)
-				for i, t := range sr.Times {
-					sr.Times[i] = convertToTimeUnit(t, timeUnit)
-				}
-				wg.Done()
-			}(sr)
-		}
-		wg.Wait()
-	}
-
 	for _, format := range formats {
 		switch format {
 		case "json":
