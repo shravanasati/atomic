@@ -147,6 +147,7 @@ func Export(formats []string, filename string, results []*SpeedResult, timeUnit 
 	for _, format := range formats {
 		switch format {
 		case "json":
+			// todo make the json tags hyperfine output compatible
 			jsonMap := map[string]any{"time_unit": timeUnit.String()[1:], "results": results}
 			jsonData, err := jsonify(jsonMap)
 			if err != nil {
