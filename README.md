@@ -25,43 +25,63 @@
 
 ## ⚡️ Installation
 
-**For Linux users:**
 
-Execute the following command in bash:
+### Installation Scripts
 
-```bash
-curl https://raw.githubusercontent.com/shravanasati/atomic/master/scripts/linux_install.sh > bench_install.sh
-
-chmod +x ./bench_install.sh
-
-bash ./bench_install.sh
-```
-
-
-**For MacOS users:**
-
-Execute the following command in bash:
+#### Linux and macOS
 
 ```bash
-curl https://raw.githubusercontent.com/shravanasati/atomic/master/scripts/macos_install.sh > bench_install.sh
-
-chmod +x ./bench_install.sh
-
-bash ./bench_install.sh
+curl https://raw.githubusercontent.com/shravanasati/atomic/main/scripts/install.sh | bash
 ```
 
-**For Windows users:**
+### Package Managers
 
-Open Powershell **as Admin** and execute the following command:
+#### Windows
 ```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; (Invoke-WebRequest -Uri https://raw.githubusercontent.com/shravanasati/atomic/master/scripts/windows_install.ps1 -UseBasicParsing).Content | powershell -
+scoop install https://github.com/shravanasati/atomic/raw/main/scripts/atomic.json
 ```
+
+### GitHub Releases
+
+atomic binaries for all operating systems are available on the [GitHub Releases](https://github.com/shravanasati/atomic/releases/latest) tab. You can download them manually and place them on `PATH` in order to use them.
+
+To simplify this process, you can use [eget](https://github.com/zyedidia/eget):
+```
+eget shravanasati/atomic
+```
+
+### Using Go compiler
+
+If you've Go compiler (v1.21 or above) installed on your system, you can install atomic via the following command. 
+
+```
+go install github.com/shravanasati/atomic@latest
+```
+
+
+### Build from source
+
+You can alternatively build atomic from source via the following commands (again, requires go1.21 or above):
+
+```
+git clone https://github.com/shravanasati/atomic.git
+cd ./atomic
+go build
+```
+
+If you want to build atomic in release mode (stripped binaries, compressed distribution and cross compilation), execute the following command. You can also control the release builds behavior using the [`release.config.json`](./scripts/release.config.json) file.
+
+```
+python ./scripts/build.py
+```
+
+<br>
 
 To verify the installation of *atomic*, open a new shell and execute `atomic -v`. You should see output like this:
 ```
-atomic 0.1.1
+atomic 0.4.0
 
-Version: 0.1.1
+Version: 0.4.0
 ```
 If the output isn't something like this, you need to repeat the above steps carefully.
 
@@ -69,43 +89,48 @@ If the output isn't something like this, you need to repeat the above steps care
 <br>
 
 ## 💡 Usage
-This section shows how you can use *atomic*.
-
-
-You can benchmark anything with atomic, python programs, executables, shell commands or anything. To benchmark with atomic, simply execute:
 
 ```
-atomic <command> [runs]
+atomic v0.4.0
+
+
+atomic is a simple CLI tool to benchmark commands. 
+For more info visit https://github.com/shravanasati/atomic.
+
+Usage:
+   atomic [commands] {flags}
+   atomic <command> {flags}
+
+Commands: 
+   help                          displays usage information
+   version                       displays version number
+
+Arguments: 
+   commands                      The command to run for benchmarking. {variadic}
+
+Flags: 
+   -c, --cleanup                 The command to execute once after every run. (default: ~!_default_!~)
+   --no-color                    Disable colored output. (default: false)
+   -e, --export                  Comma separated list of benchmark export formats, including json, text, csv and markdown. (default: none)
+   -f, --filename                The filename to use in exports. (default: atomic-summary)
+   -h, --help                    displays usage information of the application or a command (default: false)
+   -I, --ignore-error            Ignore if the process returns a non-zero return code (default: false)
+   -M, --max                     Maximum number of runs to perform. (default: 9223372036854775807)
+   -m, --min                     Minimum number of runs to perform. (default: 10)
+   --outlier-threshold           Minimum number of runs to be outliers for the outlier warning to be displayed, in percentage. (default: 0)
+   -p, --plot                    Comma separated list of plot types. Use all if you want to draw all the plots, or you can specify hist/histogram, box/boxplot, errorbar, bar, bubble. (default: none)
+   -p, --prepare                 The command to execute once before every run. (default: ~!_default_!~)
+   -r, --runs                    The number of runs to perform (default: -1)
+   -s, --shell                   Whether to use shell to execute the given command. (default: false)
+   --shell-path                  Path to the shell to use. (default: cmd.exe)
+   -u, --time-unit               The time unit to use for exported results. Must be one of ns, us, ms, s, m, h. (default: ms)
+   -t, --timeout                 The timeout for a single command. (default: 2540400h10m10.000000000s)
+   -V, --verbose                 Enable verbose output. (default: false)
+   -v, --version                 displays version number (default: false)
+   -w, --warmup                  The number of warmup runs to perform. (default: 0)
+
 ```
 
-The `command` argument is the command to execute for benchmarking, like `python3 file` or `./executable`.
-
-The `runs` argument defaults to 10, if not provided.
-
-Example:
-```
-atomic "node speedtest.js" 20
-```
-
-You can export the benchmark summary in three different formats - markdown, text and json.
-
-To export the results, use the `--export` flag. A file named `atomic-summary.format` will be created.
-
-Example:
-```
-atomic "node speedtest.js" 20 --export json
-```
-
-
-### version
-`$ atomic version`
->
-The version command shows the version of *atomic* installed.
-
-### help
-`$ atomic help`
-
-Renders assistance for *atomic* on a terminal, briefly showing its usage.
 
 <br
 

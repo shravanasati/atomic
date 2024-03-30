@@ -1,0 +1,17 @@
+{
+  "homepage": "https://github.com/shravanasati/atomic",
+  "version": "0.4.0",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/shravanasati/atomic/releases/latest/download/atomic_windows_amd64.zip",
+      "hash": "ff6d3c8e01635fa674b9e0de1d56e318e6fd10fbfd584873a35ead71fe04d1a4"
+    },
+    "arm64": {
+      "url": "https://github.com/shravanasati/atomic/releases/latest/download/atomic_windows_arm64.zip",
+      "hash": "21dba576338499cb16c9f1b76d5ba26dfbd3bb9a3ddbac4b280476b97fbfe5da"
+    }
+  },
+  "license": "MIT",
+  "bin": "atomic.exe",
+  "checkver": "github"
+}

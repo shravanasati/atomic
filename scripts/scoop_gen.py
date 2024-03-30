@@ -25,12 +25,10 @@ if __name__ == "__main__":
     schema = {
         "homepage": ATOMIC_BASE_URL,
         "version": "",
-        "architecture": {"64bit": {}, "32bit": {}, "arm64": {}},
+        "architecture": {"64bit": {}, "arm64": {}},
         "license": "MIT",
         "bin": "atomic.exe",
         "checkver": "github",
-        "post_install": "",
-        "post_uninstall": ""
     }
 
     # read release config to obtain version and platforms
@@ -42,22 +40,11 @@ if __name__ == "__main__":
     # set version in schema
     schema["version"] = release_config["version"]
 
-    # read the post_install and post_uninstall scripts (and set them)
-    post_install_path = project_base / "scripts" / "post_install.ps1"
-    with open(str(post_install_path)) as script:
-        schema["post_install"] = script.read()
-
-    post_uninstall_path = project_base / "scripts" / "post_uninstall.ps1"
-    with open(str(post_uninstall_path)) as script:
-        schema["post_uninstall"] = script.read()
-
     # set architecture data in the manifest file
     for entry in schema["architecture"]:
         match entry:
             case "64bit":
                 arch = "amd64"
-            case "32bit":
-                arch = "386"
             case "arm64":
                 arch = "arm64"
             case _:
