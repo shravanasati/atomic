@@ -15,11 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shravanasati/atomic/internal"
-	"github.com/shravanasati/commando"
 	"github.com/google/shlex"
 	"github.com/mitchellh/colorstring"
 	"github.com/schollz/progressbar/v3"
+	"github.com/shravanasati/atomic/internal"
+	"github.com/shravanasati/commando"
 )
 
 const (
@@ -509,7 +509,7 @@ func main() {
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 			// * getting args and flag values
 			if strings.TrimSpace(args["commands"].Value) == "" {
-				internal.Log("red", "error: not enough arguments.")
+				internal.Log("red", "error: not enough arguments. try running `atomic --help`.")
 				return
 			}
 			runs, e := flags["runs"].GetInt()
@@ -818,7 +818,7 @@ func main() {
 			}
 
 			internal.RelativeSummary(speedResults)
-			
+
 			// modify speedResults to convert values from microseconds to timeUnit
 			// if and only if either export or plotting needs to be done
 			if exportFormatString != "none" || plotString != "none" {

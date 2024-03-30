@@ -5,10 +5,10 @@ import "time"
 // Contains all the numerical quantities (in microseconds) for relative speed comparison. Also used for export.
 type SpeedResult struct {
 	Command           string    `json:"command,omitempty"`
-	AverageElapsed    float64   `json:"average_elapsed,omitempty"`
-	AverageUser       float64   `json:"average_user,omitempty"`
-	AverageSystem     float64   `json:"average_system,omitempty"`
-	StandardDeviation float64   `json:"standard_deviation,omitempty"`
+	AverageElapsed    float64   `json:"mean,omitempty"`
+	AverageUser       float64   `json:"user,omitempty"`
+	AverageSystem     float64   `json:"system,omitempty"`
+	StandardDeviation float64   `json:"stddev,omitempty"`
 	Max               float64   `json:"max,omitempty"`
 	Min               float64   `json:"min,omitempty"`
 	Times             []float64 `json:"times,omitempty"`

@@ -109,7 +109,14 @@ Renders assistance for *atomic* on a terminal, briefly showing its usage.
 
 ## Acknowledgement
 
-This tool is heavily inspired by [*hyperfine*](https://github.com/sharkdp/hyperfine). I learnt a lot of stuff looking at the code of this project and tried matching it as close as possible.
+This tool is heavily inspired by [*hyperfine*](https://github.com/sharkdp/hyperfine). I learnt a lot of stuff looking at the code of this project and tried matching the feature-set as close as possible.
+
+## Known Issues and Missing Features
+
+- [ ] Shell calibration yields negative process run times
+- [ ] No Color functionality is broken
+- [ ] Implementation of errorbar, boxplot and bubble chart is pending
+- [ ] Plot command is missing
 
 ## 🔖 Versioning
 *atomic* releases follow semantic versioning, every release is in the *x.y.z* form, where:
