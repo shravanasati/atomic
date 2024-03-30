@@ -194,8 +194,6 @@ func RunCommand(runOpts *RunOptions) *RunResult {
 	return runResult
 }
 
-// todo add graphing support
-
 var MinRuns = 10
 var MaxRuns = math.MaxInt64
 var MinDuration = (3 * time.Second).Microseconds()

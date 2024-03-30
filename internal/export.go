@@ -142,7 +142,6 @@ func VerifyExportFormats(formats string) ([]string, error) {
 	return formatList, nil
 }
 
-
 func Export(formats []string, filename string, results []*SpeedResult, timeUnit time.Duration) {
 	for _, format := range formats {
 		switch format {

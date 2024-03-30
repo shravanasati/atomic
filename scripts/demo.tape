@@ -69,4 +69,4 @@ Set Height 1200
 
 Type "atomic 'scc' 'tokei'" Sleep 500ms  Enter
 
-Sleep 8s
+Sleep 15s

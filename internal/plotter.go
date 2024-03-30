@@ -68,7 +68,7 @@ func barPlot(results []*SpeedResult, timeUnit string) {
 	p.Add(bars)
 
 	p.NominalX(MapFunc[[]*SpeedResult, []string](func(r *SpeedResult) string { return r.Command }, results)...)
-	
+
 	barWidth := max(3, len(results))
 	if err := p.Save(font.Length(barWidth)*vg.Inch, 3*vg.Inch, "barchart.png"); err != nil {
 		panic(err)

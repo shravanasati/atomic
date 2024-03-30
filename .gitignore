@@ -1,5 +1,6 @@
 # Binaries for programs and plugins
 bin/
+dist/
 *.exe
 *.exe~
 *.dll
@@ -19,5 +20,5 @@ bin/
 atomic-summary*
 atomic
 
-*.gif
 test*
+*.png

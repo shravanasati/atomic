@@ -2,7 +2,7 @@
 
 [![Continuous integration](https://github.com/shravanasati/atomic/actions/workflows/integrate.yml/badge.svg)](https://github.com/shravanasati/atomic/actions/workflows/integrate.yml)
 
-![bench_demo](assets/demo.png)
+![atomic demo](assets/demo.gif)
 
 
 *atomic* is a simple CLI tool for making benchmarking easy.
@@ -12,12 +12,14 @@
 
 ## ✨ Features
 
-- Benchmarks programs easily with just one command, no extra code needed
-- Export the results in markdown, json and text formats
-- Universal support, you can benchmark any shell command 
-- Choose the number of runs to perform
 - Detailed benchmark summary at the end
-- Fast and reliable
+- Export the results in markdown, json, csv format
+- Statistical Outlier Detection
+- Plot the benchmarking data, comparing the different commands
+- Arbitrary command support 
+- Constant feedback about the benchmark progress and current estimates.
+- Warmup runs can be executed before the actual benchmark.
+- Cache-clearing commands can be set up before each timing run.
 
 <br>
 
