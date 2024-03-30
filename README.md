@@ -31,14 +31,14 @@
 #### Linux and macOS
 
 ```bash
-curl https://raw.githubusercontent.com/shravanasati/atomic/main/scripts/install.sh | bash
+curl https://raw.githubusercontent.com/shravanasati/atomic/master/scripts/install.sh | bash
 ```
 
 ### Package Managers
 
 #### Windows
 ```powershell
-scoop install https://github.com/shravanasati/atomic/raw/main/scripts/atomic.json
+scoop install https://github.com/shravanasati/atomic/raw/master/scripts/atomic.json
 ```
 
 ### GitHub Releases
