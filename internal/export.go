@@ -55,6 +55,8 @@ func textify(results []*PrintableResult, filename string) {
 	// temporarily turn off colors so that [PrintableResult.String] used non-colored summary
 	origVal := NO_COLOR
 	NO_COLOR = true
+	var ferr error
+	var f *os.File
 	defer func() {
 		NO_COLOR = origVal
 		absPath, err := filepath.Abs(filename)
@@ -62,11 +64,13 @@ func textify(results []*PrintableResult, filename string) {
 			Log("red", "unable to get the absolute path for text file: "+err.Error())
 			return
 		} else {
-			Log("green", "Successfully wrote benchmark summary to `"+absPath+"`.")
+			if ferr == nil {
+				Log("green", "Successfully wrote benchmark summary to `"+absPath+"`.")
+			}
 		}
 	}()
 
-	f, ferr := os.Create(filename)
+	f, ferr = os.Create(filename)
 	if ferr != nil {
 		Log("red", "Failed to create the file.")
 	}

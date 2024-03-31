@@ -26,7 +26,7 @@ const (
 	// NAME is the executable name.
 	NAME = "atomic"
 	// VERSION is the executable version.
-	VERSION = "v0.4.0"
+	VERSION = "v0.4.2"
 )
 
 // NoColor is a global variable that is used to determine whether to enable color output.
@@ -643,7 +643,6 @@ func main() {
 			}
 
 			filename, err := flags["filename"].GetString()
-			// todo validate the filename
 			if err != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
 				return
