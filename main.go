@@ -502,7 +502,7 @@ func main() {
 		AddFlag("export,e", "Comma separated list of benchmark export formats, including json, text, csv and markdown.", commando.String, "none").
 		AddFlag("filename,f", "The filename to use in exports.", commando.String, "atomic-summary").
 		AddFlag("time-unit,u", "The time unit to use for exported results. Must be one of ns, us, ms, s, m, h.", commando.String, "ms").
-		AddFlag("plot,p", "Comma separated list of plot types. Use all if you want to draw all the plots, or you can specify hist/histogram, box/boxplot, errorbar, bar, bubble.", commando.String, "none").
+		AddFlag("plot", "Comma separated list of plot types. Use all if you want to draw all the plots, or you can specify hist/histogram, box/boxplot, errorbar, bar, bubble.", commando.String, "none").
 		AddFlag("outlier-threshold", "Minimum number of runs to be outliers for the outlier warning to be displayed, in percentage.", commando.String, "0").
 		SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 			// * getting args and flag values
@@ -643,6 +643,7 @@ func main() {
 			}
 
 			filename, err := flags["filename"].GetString()
+			// todo validate the filename
 			if err != nil {
 				internal.Log("red", "Application error: cannot parse flag values.")
 				return

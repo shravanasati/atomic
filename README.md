@@ -90,49 +90,147 @@ If the output isn't something like this, you need to repeat the above steps care
 
 ## 💡 Usage
 
-```
-atomic v0.4.0
 
+### Simple benchmarks
 
-atomic is a simple CLI tool to benchmark commands. 
-For more info visit https://github.com/shravanasati/atomic.
-
-Usage:
-   atomic [commands] {flags}
-   atomic <command> {flags}
-
-Commands: 
-   help                          displays usage information
-   version                       displays version number
-
-Arguments: 
-   commands                      The command to run for benchmarking. {variadic}
-
-Flags: 
-   -c, --cleanup                 The command to execute once after every run. (default: ~!_default_!~)
-   --no-color                    Disable colored output. (default: false)
-   -e, --export                  Comma separated list of benchmark export formats, including json, text, csv and markdown. (default: none)
-   -f, --filename                The filename to use in exports. (default: atomic-summary)
-   -h, --help                    displays usage information of the application or a command (default: false)
-   -I, --ignore-error            Ignore if the process returns a non-zero return code (default: false)
-   -M, --max                     Maximum number of runs to perform. (default: 9223372036854775807)
-   -m, --min                     Minimum number of runs to perform. (default: 10)
-   --outlier-threshold           Minimum number of runs to be outliers for the outlier warning to be displayed, in percentage. (default: 0)
-   -p, --plot                    Comma separated list of plot types. Use all if you want to draw all the plots, or you can specify hist/histogram, box/boxplot, errorbar, bar, bubble. (default: none)
-   -p, --prepare                 The command to execute once before every run. (default: ~!_default_!~)
-   -r, --runs                    The number of runs to perform (default: -1)
-   -s, --shell                   Whether to use shell to execute the given command. (default: false)
-   --shell-path                  Path to the shell to use. (default: cmd.exe)
-   -u, --time-unit               The time unit to use for exported results. Must be one of ns, us, ms, s, m, h. (default: ms)
-   -t, --timeout                 The timeout for a single command. (default: 2540400h10m10.000000000s)
-   -V, --verbose                 Enable verbose output. (default: false)
-   -v, --version                 displays version number (default: false)
-   -w, --warmup                  The number of warmup runs to perform. (default: 0)
+Let's benchmark our first CLI command using atomic.
 
 ```
+atomic "grep -iFr 'type'"
+```
+
+This grep command searches the codebase for the plain text 'type', recursively and case sensitively.
+
+Notice how atomic automatically determines the number of runs to perform in the benchmark. atomic will run any given command atleast 10 times and for atleast 3 seconds, when determining the number of runs on its own.
+
+You can alter this behavior using the `--min/-m X` and `--max/-M Y` flags. When the `--min/-m X` flag is passed, atomic will run the command atleast X number of times. If the `--max/-M Y` flag is passed, atomic will perform maximum Y number of runs.
+
+```
+atomic "grep -iFr 'type'" -m 50 -M 200
+```
+
+Both these flags are independent of each other, you can use any one of those at a time.
+
+You can pass the exact number of runs to perform using the `--runs/-r N` flag.
+
+```
+atomic "grep -iFr 'type'" --runs 50
+```
+
+### Warmup runs and preparation & cleanup commands
+
+You might get a warning that says atomic found statistical outliers in the benchmark, which generally happens due to missing filesystem caches (especially for IO heavy programs like grep) and/or interferences from other running programs (OS context switches).
+
+You can use the `--warmup/-w N` flag to ask atomic to run the command N number of times before beginning the actual benchmark.
+
+```
+atomic "grep -iFr 'type'" --runs 50 --warmup 10
+```
+
+atomic raises the statistical outlier warning even if one of the data point (execution time in this case) is an outlier. You can raise this threshold using the `--outlier-threshold P` flag where P is the minimum percentage of outliers that should be present in the benchmark data for atomic to raise the warning. 
+
+A command you are running may require some additional setup before every time it is executed, or need to remove some assets it has generated after the execution. You can use the `--prepare/-p command` and `--cleanup/-c command` flags respectively to achieve above tasks.
+
+```
+atomic "go build" --prepare "go generate ./..." --cleanup "rm *.exe"
+```
+
+### Intermediate shells
+
+> This feature is under development.
+
+Let's look at another command to benchmark.
+
+```
+atomic ls
+```
+
+This command might give the error on Windows, because `ls` is not a executable but a shell function, provided by powershell, unlike Unix systems.
+
+In such cases, use the `--shell/-s` flag to ask atomic to run the command within a shell context.
+atomic will use `cmd.exe` on Windows and `/bin/sh` on Unix-based systems by default. 
+You can choose a custom shell too using the `--shell-path path` flag. Since `ls` is not provided by `cmd.exe` either, we'll use powershell.
+
+```
+atomic ls -s --shell-path powershell
+```
+
+atomic will perform shell calibration (substracting shell spawn time from total process execution time) but it's far from perfect (even working state) and may yield negative runtimes. 
+
+### Timeouts & Debugging failed benchmarks
+
+atomic also offers a `--timeout/-t D` flag, which tells atomic to cancel the benchmark if any of the run of given commands takes longer than D, where D is the time duration which can expressed as following: `number{ns|us|ms|s|m|h}`.
+
+```
+atomic "grep -iFr 'type'" --timeout 100ms
+```
+
+Sometimes the command you've given might finish with non-zero exit code, which generally indicates that it failed to execute successfully.
+
+In such cases, atomic will stop the benchmark immediately. 
+
+You can alter this behaviour with the `--ignore-error/-I` flag, which will make atomic continue the benchmark even if commands return non-zero exit codes.
+
+Use this flag cautiously, advisably only when you know why the command is behaving that way and whether it is desired.
+
+A good example is Go compiler when called with zero arguments:
+
+```
+atomic go
+```
+
+This will fail - to investigate what's wrong you can use the `--verbose/-V` flag to show the output of the command. 
+
+Turns out, the Go compiler just renders the help text with an exit status of 2, which causes the benchmark to fail. It's safe to use the `--ignore-error/-I` flag now.
+
+On another note, use the `--verbose/-V` flag sparingly (writing to stdout is expensive).
+
+### Comparing several commands
+
+atomic accepts multiple commands to benchmark, and then also displays relative summary at the end, comparing those commands.
+
+Let's use atomic to compare [scc](https://github.com/boyter/scc) and [tokei](https://github.com/XAMPPRocky/tokei), two popular code counting tools.
+
+```
+atomic scc tokei -w 20
+```
+
+All the flags you provide to atomic will be applied for all the commands.
+In this example, 20 warmup runs will be executed for both scc and tokei.
 
 
-<br
+
+### Exports and plots
+
+atomic can export the benchmarking data in JSON, markdown, CSV and text formats.
+
+Use the `--export/-e formats` flag where `formats` is the comma-separated list of supported export formats.
+
+```
+atomic 'grep -iFr "type"' --export json,csv,md
+```
+
+atomic will create three files named `atomic-summary.{ext}` with the benchmark data.
+
+The default name for exports is `atomic-summary` but can be modified using the `--filename/-f name` flag. 
+
+The default time unit for exports is `ms` (milliseconds) but can be modified using the `--time-unit/-u unit` flag. Valid values for time units are {ns, us, ms, s, m, h}.
+
+```
+atomic 'grep -iFr "type"' -e json,csv,md -f grep_data -u s
+```
+
+JSON export has the most amount of data, since it also contains a key named `times` which is an array of all run-times. This JSON output also matches with that of [hyperfine](https://github.com/sharkdp/hyperfine)'s, so you can utilize the Python scripts in the hyperfine repository that visualize the benchmark data (and vice versa with the upcoming `plot` command). 
+
+You can also plot this data using the `--plot T` flag, where `T` is the comma-separated list of chart formats. Valid values for T include {hist, histogram, bar, **all**}. If all is used as `T`, atomic will plot the data with all chart types.
+
+```
+atomic 'ag pattern' 'rg pattern' --plot all
+```
+
+> The plot feature is also under development.
+
+<br>
 
 ## Acknowledgement
 
