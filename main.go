@@ -26,7 +26,7 @@ const (
 	// NAME is the executable name.
 	NAME = "atomic"
 	// VERSION is the executable version.
-	VERSION = "v0.4.2"
+	VERSION = "v0.4.1"
 )
 
 // NoColor is a global variable that is used to determine whether to enable color output.

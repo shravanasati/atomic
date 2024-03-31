@@ -4,11 +4,11 @@
   "architecture": {
     "64bit": {
       "url": "https://github.com/shravanasati/atomic/releases/latest/download/atomic_windows_amd64.zip",
-      "hash": "4731df2065233ee4f7c5c28e795c25900a106a273ca3557eaf5b0d3030ba611f"
+      "hash": "b5cf4c716b4690afd030894199df140e60afb584a04dfaedd00bef9e9107533f"
     },
     "arm64": {
       "url": "https://github.com/shravanasati/atomic/releases/latest/download/atomic_windows_arm64.zip",
-      "hash": "98f4d2406ea55181938b046354806232acfff6a22c5bcae401f3a830c11e743f"
+      "hash": "be036755c16bf2d11d2fc59f24e8fefb194f05a4cbda2c4b898450687b0c896f"
     }
   },
   "license": "MIT",
