@@ -463,6 +463,10 @@ func Benchmark(opts BenchmarkOptions) ([]*RunResult, bool) {
 	return runsData, false
 }
 
+// todo parameter scan
+// this is how imagine the parameter scan would be given
+// --parameter-scan "variable=start:end:step;var2=[val1,val2,val3]"
+
 func main() {
 	internal.Log("white", fmt.Sprintf("%v %v\n", NAME, VERSION))
 

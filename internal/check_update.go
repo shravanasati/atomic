@@ -22,7 +22,7 @@ const (
 )
 
 // Compares two semver strings of format vx.y.z.
-// Returns 1 if v1 > v2, -1 if v1 < v2, 0 if v1 == v2.
+// Returns greater if v1 > v2, lower if v1 < v2, equal if v1 == v2.
 func compareSemverStrings(v1, v2 string) int {
 	ans := semver.Compare(v1, v2)
 	switch ans {

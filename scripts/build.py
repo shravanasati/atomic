@@ -170,7 +170,7 @@ if __name__ == "__main__":
     max_procs = cpu_count()
     print(f"==> 🔥 Starting builds with {max_procs} parallel processes.")
 
-    with Pool(processes=max_procs) as pool:
+    with Pool(processes=min(len(PLATFORMS), max_procs)) as pool:
         pool.map(build, PLATFORMS)
 
     print("==> #️⃣  Generating checksums.")
